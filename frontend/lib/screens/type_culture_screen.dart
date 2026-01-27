@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'choix_culture_screen.dart';
+import '../services/api_service.dart';
+import 'login_screen.dart';
 
 class TypeCultureScreen extends StatelessWidget {
   @override
@@ -8,6 +10,39 @@ class TypeCultureScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Type de culture"),
         backgroundColor: Colors.green[700],
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                _showLogoutDialog(context);
+              } else if (value == 'profile') {
+                _showProfileInfo(context);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person, size: 20),
+                    SizedBox(width: 8),
+                    Text('Profil'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, size: 20),
+                    SizedBox(width: 8),
+                    Text('Déconnexion'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -16,7 +51,7 @@ class TypeCultureScreen extends StatelessWidget {
           children: [
             _buildTypeCard(context, "Serre", "assets/images/serre.jpg", "serre"),
             const SizedBox(height: 20),
-            _buildTypeCard(context, "Plein air", "assets/images/plein_air.jpg", "plein_air"),
+            _buildTypeCard(context, "Plein air", "assets/images/pleinair.jpeg", "plein_air"),
           ],
         ),
       ),
@@ -56,6 +91,63 @@ class TypeCultureScreen extends StatelessWidget {
             const SizedBox(width: 16),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Déconnexion"),
+        content: const Text("Voulez-vous vraiment vous déconnecter ?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          TextButton(
+            onPressed: () async {
+              await ApiService.logout();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => LoginScreen()),
+                (route) => false,
+              );
+            },
+            child: const Text("Déconnecter"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showProfileInfo(BuildContext context) async {
+    final token = await ApiService.getToken();
+    final role = await ApiService.getRole();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Informations du profil"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Statut: ${token != null ? 'Connecté' : 'Non connecté'}"),
+            if (role != null) Text("Rôle: $role"),
+            if (token != null) ...[
+              const SizedBox(height: 10),
+              const Text("Token actif: ✓"),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,10 @@
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Ndao",
+  "prenom": "Babacar",
+  "telephone": "770000000",
+  "motDePasse": "123456",
+  "role": "agriculteur"
+}

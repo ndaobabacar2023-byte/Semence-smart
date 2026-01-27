@@ -3,19 +3,21 @@ description: Application mobile Flutter AgriAdvisor
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.18.0 <3.0.0"
+  sdk: ">=2.19.0 <3.0.0"  # Version plus récente
 
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.13.5
-  shared_preferences: ^2.1.0
+  http: ^1.1.0           # Version plus stable
+  shared_preferences: ^2.2.2  # AJOUTÉ
   fluttertoast: ^9.0.0
-
+  flutter_secure_storage: ^9.0.0
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
@@ -24,8 +26,5 @@ flutter:
     - assets/images/poivron.jpg
     - assets/images/mil.jpg
     - assets/images/arachide.jpeg
-
-
-
-
-
+    - assets/images/serre.jpg
+    - assets/images/plein_air.jpeg
