@@ -84,10 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Connexion"),
-        backgroundColor: Colors.green[700],
-      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(20),
         child: Form(
@@ -95,23 +91,63 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo/Image
+              // Espace en haut
               SizedBox(height: 40),
-              Icon(
-                Icons.lock_person,
-                size: 100,
-                color: Colors.green[700],
+              
+              // Logo avec image
+              Container(
+                width: 120,
+                height: 120,
+                margin: EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(60),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    )
+                  ],
+                  border: Border.all(
+                    color: Colors.green,
+                    width: 2,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(60),
+                  child: Image.asset(
+                    'assets/images/logo.png', // Chemin de votre image de logo
+                    fit: BoxFit.contain,
+                    width: 80,
+                    height: 80,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback si l'image n'est pas trouvée
+                      return Container(
+                        color: Colors.green,
+                        child: Icon(
+                          Icons.agriculture,
+                          size: 60,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-              SizedBox(height: 30),
+              
+              // Titre principal
               Text(
-                "Bienvenue",
+                "Bienvenue à SemenceSmart",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green[800],
+                  color: const Color.fromARGB(255, 9, 225, 20),
                 ),
                 textAlign: TextAlign.center,
               ),
+              
+              // Sous-titre
               SizedBox(height: 10),
               Text(
                 "Connectez-vous à votre compte",
@@ -128,9 +164,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: emailController,
                 decoration: InputDecoration(
                   labelText: "Email",
-                  prefixIcon: Icon(Icons.email),
+                  prefixIcon: Icon(Icons.email, color: Colors.green),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green, width: 2),
                   ),
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -143,10 +184,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: passwordController,
                 decoration: InputDecoration(
                   labelText: "Mot de passe",
-                  prefixIcon: Icon(Icons.lock),
+                  prefixIcon: Icon(Icons.lock, color: Colors.green),
                   suffixIcon: IconButton(
                     icon: Icon(
                       obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.green,
                     ),
                     onPressed: () {
                       setState(() {
@@ -156,6 +198,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green, width: 2),
                   ),
                 ),
                 obscureText: obscurePassword,
@@ -165,11 +212,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Bouton de connexion
               loading
-                  ? Center(child: CircularProgressIndicator())
+                  ? Center(child: CircularProgressIndicator(color: Colors.green))
                   : ElevatedButton(
                       onPressed: login,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[700],
+                        backgroundColor: const Color.fromARGB(255, 17, 236, 28),
                         padding: EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -191,7 +238,10 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Pas encore de compte ? "),
+                  Text(
+                    "Pas encore de compte ? ",
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
@@ -202,8 +252,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       "Inscrivez-vous",
                       style: TextStyle(
-                        color: Colors.green[700],
+                        color: const Color.fromARGB(255, 12, 245, 24),
                         fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
                   ),

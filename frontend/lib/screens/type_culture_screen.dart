@@ -51,7 +51,7 @@ class TypeCultureScreen extends StatelessWidget {
           children: [
             _buildTypeCard(context, "Serre", "assets/images/serre.jpg", "serre"),
             const SizedBox(height: 20),
-            _buildTypeCard(context, "Plein air", "assets/images/pleinair.jpeg", "plein_air"),
+            _buildTypeCard(context, "Plein air", "assets/images/plein_air.jpeg", "plein_air"),
           ],
         ),
       ),

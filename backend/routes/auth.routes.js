@@ -1,14 +1,11 @@
-// Fichier: routes/auth.routes.js
-// Rôle: routes pour l'authentification (register, login)
-
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 
-// POST /api/auth/register
+// Inscription
 router.post('/register', authController.register);
 
-// POST /api/auth/login
+// Connexion
 router.post('/login', authController.login);
 
 module.exports = router;

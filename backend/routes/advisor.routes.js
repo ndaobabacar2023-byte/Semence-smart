@@ -1,53 +1,19 @@
-// routes/advisor.routes.js - VERSION SIMPLIFIÉE TEMPORAIRE
+// routes/advisor.routes.js
 const express = require('express');
 const router = express.Router();
+const advisorController = require('../controllers/advisor.controller');
 
-console.log('🔄 Chargement de advisor.routes.js (version simplifiée)');
+console.log('🔄 Chargement de advisor.routes.js avec controller');
 
-// Route d'analyse simplifiée (sans contrôleur)
-router.post('/analyse', (req, res) => {
-  console.log('📡 POST /api/advisor/analyse (version simplifiée)');
-  console.log('📥 Données:', req.body);
-  
-  res.json({
-    success: true,
-    culture: req.body.culture || 'Tomate',
-    typeCulture: req.body.typeCulture || 'serre',
-    status: 'excellent',
-    score: 88,
-    message: 'Conditions optimales pour la culture',
-    variete: {
-      nom: 'Premium F1',
-      resistance_secheresse: true
-    },
-    recommandations: [
-      'Planter après les premières pluies',
-      'Maintenir une humidité de 60-70%'
-    ],
-    fournisseurs: [
-      {
-        nom: 'Test Fournisseur',
-        telephone: '+221 77 000 00 00'
-      }
-    ]
-  });
-});
+// Route d'analyse
+router.post('/analyse', advisorController.analyse);
 
-// Historique simplifié
-router.get('/historique', (req, res) => {
-  res.json({
-    success: true,
-    data: []
-  });
-});
+// Historique
+router.get('/historique', advisorController.historique);
 
 // Test
-router.get('/test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API Advisor fonctionnelle'
-  });
-});
+router.get('/test', advisorController.test);
 
-console.log('✅ Routes advisor configurées');
+console.log('✅ Routes advisor configurées avec controller');
+
 module.exports = router;
