@@ -156,7 +156,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     });
   }
 
-Future<void> _submit() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       _showErrorSnackBar('Veuillez corriger les erreurs dans le formulaire');
       return;
@@ -177,21 +177,17 @@ Future<void> _submit() async {
       // Extraire la saison simplifiée
       final saisonSimple = _saison!.split(' ')[0].toLowerCase();
 
-      // Extraire le sol simplifié
-      final solSimple = _sol!.toLowerCase();
-
       print("🚀 Lancement de l'analyse...");
       print("🌱 Culture: ${widget.culture}");
       print("📍 Zone: $zoneSimple");
       print("📅 Saison: $saisonSimple");
 
-      // APPEL CORRIGÉ : Passer tous les paramètres requis
       final result = await ApiService.analyseConditions(
         culture: widget.culture,
         typeCulture: widget.type,
         temperature: _temperature,
         humidite: _humidite,
-        sol: solSimple,
+        sol: _sol!,
         zone: zoneSimple,
         saison: saisonSimple,
         eau: _eau,
@@ -234,6 +230,7 @@ Future<void> _submit() async {
       setState(() => _loading = false);
     }
   }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
