@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import '../theme.dart';
+import '../widgets/glass_container.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -15,315 +17,191 @@ class _RegisterScreenState extends State<RegisterScreen> {
   TextEditingController emailController = TextEditingController();
   TextEditingController telephoneController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+
   bool loading = false;
   String role = 'agriculteur';
 
   void register() async {
     if (_formKey.currentState!.validate()) {
-      FocusScope.of(context).unfocus();
-      setState(() { 
-        loading = true; 
-      });
+      setState(() => loading = true);
 
-      print("🚀 Début de l'inscription...");
-      print("📋 Rôle sélectionné: $role");
-
-      // CORRECTION CRITIQUE: Ordre correct des paramètres
       var response = await ApiService.register(
-        nomController.text.trim(),
-        prenomController.text.trim(),
-        emailController.text.trim(),
-        passwordController.text.trim(),   // CORRECT: Mot de passe en 4ème
-        telephoneController.text.trim(),  // CORRECT: Téléphone en 5ème
+        nomController.text,
+        prenomController.text,
+        emailController.text,
+        passwordController.text,
+        telephoneController.text,
         role,
       );
 
-      setState(() { 
-        loading = false; 
-      });
-
-      print("📊 Réponse API: $response");
+      setState(() => loading = false);
 
       if (response['token'] != null) {
-        Fluttertoast.showToast(
-          msg: "🎉 Inscription réussie !",
-          toastLength: Toast.LENGTH_LONG,
-          backgroundColor: Colors.green,
-        );
-        
-        // Redirection vers l'écran de connexion
-        await Future.delayed(Duration(milliseconds: 1500));
-        
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => LoginScreen()),
         );
       } else {
-        // Afficher le message d'erreur approprié
-        String errorMessage = response['message'] ?? 
-                             response['error'] ?? 
-                             'Une erreur est survenue lors de l\'inscription';
-        
         Fluttertoast.showToast(
-          msg: "❌ $errorMessage",
-          toastLength: Toast.LENGTH_LONG,
+          msg: "❌ Erreur inscription",
           backgroundColor: Colors.red,
         );
-        
-        // Afficher plus de détails en mode debug
-        print("❌ Erreur détaillée: $response");
       }
     }
-  }
-
-  // Validateurs
-  String? nomValidator(String? v) {
-    if (v == null || v.isEmpty) return "Le nom est obligatoire";
-    return null;
-  }
-
-  String? prenomValidator(String? v) {
-    if (v == null || v.isEmpty) return "Le prénom est obligatoire";
-    return null;
-  }
-
-  String? emailValidator(String? v) {
-    if (role == 'admin' || role == 'technicien') {
-      if (v == null || v.isEmpty) return "Email obligatoire pour ce rôle";
-      final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-      if (!regex.hasMatch(v)) return "Format email invalide";
-    }
-    return null;
-  }
-
-  String? telephoneValidator(String? v) {
-    if (role == 'agriculteur') {
-      if (v == null || v.isEmpty) return "Téléphone obligatoire pour agriculteur";
-      if (v.length < 8) return "Numéro trop court";
-    }
-    return null;
-  }
-
-  String? passwordValidator(String? v) {
-    if (v == null || v.isEmpty) return "Le mot de passe est obligatoire";
-    if (v.length < 6) return "Minimum 6 caractères";
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Inscription"),
-        backgroundColor: Colors.green[700],
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Logo/Image
-              SizedBox(height: 10),
-              Icon(
-                Icons.person_add,
-                size: 80,
-                color: Colors.green[700],
-              ),
-              SizedBox(height: 20),
-              Text(
-                "Créer un compte",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green[800],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 30),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.black, Color(0xFF2E7D32)],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: GlassContainer(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
 
-              // Champ Nom
-              TextFormField(
-                controller: nomController,
-                decoration: InputDecoration(
-                  labelText: "Nom *",
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                validator: nomValidator,
-              ),
-              SizedBox(height: 15),
+                        Icon(Icons.person_add,
+                            color: Colors.white, size: 70),
 
-              // Champ Prénom
-              TextFormField(
-                controller: prenomController,
-                decoration: InputDecoration(
-                  labelText: "Prénom *",
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                validator: prenomValidator,
-              ),
-              SizedBox(height: 15),
+                        SizedBox(height: 20),
 
-              // Champ Email
-              TextFormField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: "Email ${(role == 'admin' || role == 'technicien') ? '*' : ''}",
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: emailValidator,
-              ),
-              SizedBox(height: 15),
+                        Text("Inscription",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
 
-              // Champ Téléphone (conditionnel)
-              if (role == 'agriculteur')
-                Column(
-                  children: [
-                    TextFormField(
-                      controller: telephoneController,
-                      decoration: InputDecoration(
-                        labelText: "Téléphone *",
-                        prefixIcon: Icon(Icons.phone),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
+                        SizedBox(height: 20),
+
+                        TextFormField(
+                          controller: nomController,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: "Nom",
+                            labelStyle: TextStyle(color: Colors.white),
+                            prefixIcon:
+                                Icon(Icons.person, color: Colors.white),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.2),
+                          ),
                         ),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      validator: telephoneValidator,
-                    ),
-                    SizedBox(height: 15),
-                  ],
-                ),
 
-              // Champ Mot de passe
-              TextFormField(
-                controller: passwordController,
-                decoration: InputDecoration(
-                  labelText: "Mot de passe *",
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                obscureText: true,
-                validator: passwordValidator,
-              ),
-              SizedBox(height: 20),
+                        SizedBox(height: 15),
 
-              // Sélecteur de rôle
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[400]!),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: role,
-                    isExpanded: true,
-                    icon: Icon(Icons.arrow_drop_down, color: Colors.green[700]),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'agriculteur',
-                        child: Row(
-                          children: [
-                            Icon(Icons.agriculture, color: Colors.green),
-                            SizedBox(width: 10),
-                            Text('Agriculteur'),
+                        TextFormField(
+                          controller: prenomController,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: "Prénom",
+                            labelStyle: TextStyle(color: Colors.white),
+                            prefixIcon: Icon(Icons.person_outline,
+                                color: Colors.white),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+
+                        SizedBox(height: 15),
+
+                        TextFormField(
+                          controller: emailController,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: "Email",
+                            labelStyle: TextStyle(color: Colors.white),
+                            prefixIcon:
+                                Icon(Icons.email, color: Colors.white),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+
+                        SizedBox(height: 15),
+
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: true,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: "Mot de passe",
+                            labelStyle: TextStyle(color: Colors.white),
+                            prefixIcon:
+                                Icon(Icons.lock, color: Colors.white),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+
+                        SizedBox(height: 20),
+
+                        DropdownButton<String>(
+                          value: role,
+                          dropdownColor: Colors.black,
+                          style: TextStyle(color: Colors.white),
+                          isExpanded: true,
+                          items: [
+                            DropdownMenuItem(
+                                value: 'agriculteur',
+                                child: Text('Agriculteur')),
+                            DropdownMenuItem(
+                                value: 'technicien',
+                                child: Text('Technicien')),
+                            DropdownMenuItem(
+                                value: 'admin',
+                                child: Text('Admin')),
                           ],
+                          onChanged: (v) {
+                            setState(() => role = v!);
+                          },
                         ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'technicien',
-                        child: Row(
-                          children: [
-                            Icon(Icons.engineering, color: Colors.blue),
-                            SizedBox(width: 10),
-                            Text('Technicien'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'admin',
-                        child: Row(
-                          children: [
-                            Icon(Icons.admin_panel_settings, color: Colors.red),
-                            SizedBox(width: 10),
-                            Text('Administrateur'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          role = newValue;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(height: 30),
 
-              // Bouton d'inscription
-              loading
-                  ? Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: register,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[700],
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 5,
-                      ),
-                      child: Text(
-                        "S'INSCRIRE",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-              SizedBox(height: 20),
+                        SizedBox(height: 30),
 
-              // Lien vers connexion
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Vous avez déjà un compte ? "),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => LoginScreen()),
-                      );
-                    },
-                    child: Text(
-                      "Connectez-vous",
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.bold,
-                      ),
+                        loading
+                            ? CircularProgressIndicator()
+                            : ElevatedButton(
+                                onPressed: register,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  minimumSize:
+                                      Size(double.infinity, 50),
+                                ),
+                                child: Text("S'INSCRIRE",
+                                    style: TextStyle(color: Colors.white)),
+                              ),
+
+                        SizedBox(height: 20),
+
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => LoginScreen()),
+                            );
+                          },
+                          child: Text("Se connecter",
+                              style:
+                                  TextStyle(color: Colors.greenAccent)),
+                        )
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
