@@ -1,0 +1,17 @@
+# Node.js
+node_modules/
+
+# Flutter
+build/
+.dart_tool/
+.packages
+
+# Environnement
+.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
