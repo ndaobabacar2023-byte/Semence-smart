@@ -12,6 +12,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+
   TextEditingController nomController = TextEditingController();
   TextEditingController prenomController = TextEditingController();
   TextEditingController emailController = TextEditingController();
@@ -22,7 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String role = 'agriculteur';
 
   void register() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
       setState(() => loading = true);
 
       var response = await ApiService.register(
@@ -36,18 +37,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       setState(() => loading = false);
 
-      if (response['token'] != null) {
+      print("RESPONSE: $response");
+
+      if (response != null && response['token'] != null) {
+        Fluttertoast.showToast(
+          msg: "✅ Inscription réussie",
+          backgroundColor: Colors.green,
+        );
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => LoginScreen()),
         );
       } else {
         Fluttertoast.showToast(
-          msg: "❌ Erreur inscription",
+          msg: response['message'] ?? "❌ Erreur inscription",
           backgroundColor: Colors.red,
         );
       }
     }
+  }
+
+  @override
+  void dispose() {
+    nomController.dispose();
+    prenomController.dispose();
+    emailController.dispose();
+    telephoneController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration inputStyle(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white),
+      prefixIcon: Icon(icon, color: Colors.white),
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.2),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    );
   }
 
   @override
@@ -71,7 +102,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-
                         Icon(Icons.person_add,
                             color: Colors.white, size: 70),
 
@@ -85,72 +115,76 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                         SizedBox(height: 20),
 
+                        // NOM
                         TextFormField(
                           controller: nomController,
                           style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: "Nom",
-                            labelStyle: TextStyle(color: Colors.white),
-                            prefixIcon:
-                                Icon(Icons.person, color: Colors.white),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.2),
-                          ),
+                          decoration: inputStyle("Nom", Icons.person),
+                          validator: (value) =>
+                              value!.isEmpty ? "Champ obligatoire" : null,
                         ),
 
                         SizedBox(height: 15),
 
+                        // PRENOM
                         TextFormField(
                           controller: prenomController,
                           style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: "Prénom",
-                            labelStyle: TextStyle(color: Colors.white),
-                            prefixIcon: Icon(Icons.person_outline,
-                                color: Colors.white),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.2),
-                          ),
+                          decoration: inputStyle("Prénom", Icons.person_outline),
+                          validator: (value) =>
+                              value!.isEmpty ? "Champ obligatoire" : null,
                         ),
 
                         SizedBox(height: 15),
 
+                        // EMAIL
                         TextFormField(
                           controller: emailController,
                           style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            labelStyle: TextStyle(color: Colors.white),
-                            prefixIcon:
-                                Icon(Icons.email, color: Colors.white),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.2),
-                          ),
+                          decoration: inputStyle("Email", Icons.email),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Email requis";
+                            }
+                            return null;
+                          },
                         ),
 
                         SizedBox(height: 15),
 
+                        // TELEPHONE
+                        TextFormField(
+                          controller: telephoneController,
+                          style: TextStyle(color: Colors.white),
+                          decoration: inputStyle("Téléphone", Icons.phone),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Téléphone requis";
+                            }
+                            return null;
+                          },
+                        ),
+
+                        SizedBox(height: 15),
+
+                        // PASSWORD
                         TextFormField(
                           controller: passwordController,
                           obscureText: true,
                           style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: "Mot de passe",
-                            labelStyle: TextStyle(color: Colors.white),
-                            prefixIcon:
-                                Icon(Icons.lock, color: Colors.white),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.2),
-                          ),
+                          decoration: inputStyle("Mot de passe", Icons.lock),
+                          validator: (value) =>
+                              value!.length < 6 ? "Min 6 caractères" : null,
                         ),
 
                         SizedBox(height: 20),
 
-                        DropdownButton<String>(
+                        // ROLE - SEULEMENT AGRICULTEUR ET TECHNICIEN
+                        DropdownButtonFormField<String>(
                           value: role,
                           dropdownColor: Colors.black,
                           style: TextStyle(color: Colors.white),
-                          isExpanded: true,
+                          decoration: inputStyle("Rôle", Icons.group),
                           items: [
                             DropdownMenuItem(
                                 value: 'agriculteur',
@@ -158,9 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             DropdownMenuItem(
                                 value: 'technicien',
                                 child: Text('Technicien')),
-                            DropdownMenuItem(
-                                value: 'admin',
-                                child: Text('Admin')),
+                            // Admin supprimé - accessible uniquement par base de données
                           ],
                           onChanged: (v) {
                             setState(() => role = v!);
@@ -175,8 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 onPressed: register,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
-                                  minimumSize:
-                                      Size(double.infinity, 50),
+                                  minimumSize: Size(double.infinity, 50),
                                 ),
                                 child: Text("S'INSCRIRE",
                                     style: TextStyle(color: Colors.white)),
@@ -193,8 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             );
                           },
                           child: Text("Se connecter",
-                              style:
-                                  TextStyle(color: Colors.greenAccent)),
+                              style: TextStyle(color: Colors.greenAccent)),
                         )
                       ],
                     ),

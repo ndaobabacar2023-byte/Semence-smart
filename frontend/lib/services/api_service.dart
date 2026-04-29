@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.122.190:3000/api/advisor";
+  static const String baseUrl = "http://localhost:3000/api";
 
 // ===== ANALYSE CONDITIONS =====
 static Future<Map<String, dynamic>> analyseConditions({
@@ -40,7 +40,7 @@ static Future<Map<String, dynamic>> analyseConditions({
     print("📤 Envoi analyse: ${jsonEncode(body)}");
     
     final res = await http.post(
-       Uri.parse("$baseUrl/analyse"),
+       Uri.parse("$baseUrl/advisor/analyse"),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",

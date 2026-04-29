@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../providers/location_provider.dart';
 import 'resultat_screen.dart';
 
 class FormulaireScreen extends StatefulWidget {
@@ -20,29 +22,24 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
-  // Valeurs par défaut adaptées au Sénégal
+  // Paramètres
   double _temperature = 28.0;
   double _humidite = 60.0;
   double _eau = 30.0;
-
   String? _sol;
   String? _zone;
   String? _saison;
-
   bool _loading = false;
+  bool _isLocationLoaded = false;
 
-  late AnimationController _animController;
-  late Animation<double> _fadeInAnim;
+  // Animations
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
-  // Options adaptées au Sénégal
-  final List<String> sols = [
-    'Sableux',
-    'Limoneux',
-    'Argileux',
-    'Lateritique',
-    'Tourbeux'
-  ];
-
+  // Options
+  final List<String> sols = ['Sableux', 'Limoneux', 'Argileux', 'Lateritique', 'Tourbeux'];
+  
   final List<String> zones = [
     'Nord (Louga, Matam, Podor)',
     'Centre (Thiès, Diourbel, Kaolack)',
@@ -57,130 +54,84 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     'Contre-saison (novembre - février)'
   ];
 
-  // Variables pour score indicatif
-  int _scoreIndicatif = 0;
-  List<String> _recoIndicatives = [];
-
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
+    
+    // Animations
+    _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _fadeInAnim = CurvedAnimation(
-      parent: _animController,
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
       curve: Curves.easeIn,
     );
-    _animController.forward();
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
+    _animationController.forward();
 
-    // Définir des valeurs par défaut selon la culture
     _setDefaultValues();
-    _updateIndicatif();
+    _loadUserLocation();
   }
 
   void _setDefaultValues() {
-    // Température par défaut selon le type de culture
     setState(() {
       _saison = 'Hivernage (juin - septembre)';
-      
       if (widget.type == "serre") {
-        _temperature = 25.0; // Température contrôlée en serre
-        _humidite = 65.0; // Humidité plus élevée en serre
+        _temperature = 25.0;
+        _humidite = 65.0;
       } else {
-        _temperature = 28.0; // Température extérieure moyenne
-        _humidite = 60.0; // Humidité extérieure moyenne
+        _temperature = 28.0;
+        _humidite = 60.0;
       }
     });
   }
 
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
+  void _loadUserLocation() {
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        String detectedZone = locationProvider.currentZone;
+        String formattedZone = _getFormattedZone(detectedZone);
+        
+        if (formattedZone.isNotEmpty) {
+          _zone = formattedZone;
+          _isLocationLoaded = true;
+        }
+      });
+    });
   }
 
-  void _updateIndicatif() {
-    // Calcul simplifié adapté au Sénégal
-    int tempScore = (_temperature >= 25 && _temperature <= 35)
-        ? 100
-        : (_temperature >= 20 && _temperature <= 40 ? 60 : 20);
-
-    int humiditeScore = (_humidite >= 40 && _humidite <= 75)
-        ? 100
-        : (_humidite >= 30 && _humidite <= 85 ? 60 : 20);
-
-    int eauScore = (_eau >= 20 && _eau <= 60) ? 100 : (_eau >= 10 ? 60 : 20);
-
-    int solScore = (_sol != null) ? 100 : 50;
-    int saisonScore = (_saison != null) ? 100 : 50;
-
-    // Pondérations pour le Sénégal
-    double weighted = tempScore * 0.30 +
-        humiditeScore * 0.25 +
-        solScore * 0.20 +
-        eauScore * 0.15 +
-        saisonScore * 0.10;
-
-    setState(() {
-      _scoreIndicatif = weighted.round();
-
-      // Recommandations simplifiées
-      _recoIndicatives = [];
-      if (tempScore < 60) {
-        if (_temperature < 25) {
-          _recoIndicatives.add('Température trop basse pour la saison');
-        } else {
-          _recoIndicatives.add('Température élevée, protéger les plants');
-        }
-      }
-      if (humiditeScore < 60) {
-        if (_humidite < 40) {
-          _recoIndicatives.add('Humidité faible, augmenter l\'arrosage');
-        } else {
-          _recoIndicatives.add('Humidité élevée, risque de maladies fongiques');
-        }
-      }
-      if (solScore < 60) _recoIndicatives.add('Type de sol à vérifier');
-      if (eauScore < 60) {
-        if (_eau < 20) {
-          _recoIndicatives.add('Irrigation insuffisante');
-        } else {
-          _recoIndicatives.add('Excès d\'eau, améliorer drainage');
-        }
-      }
-      if (saisonScore < 60) _recoIndicatives.add('Saison non optimale');
-      if (_recoIndicatives.isEmpty) {
-        _recoIndicatives.add('Conditions favorables pour le Sénégal');
-      }
-    });
+  String _getFormattedZone(String zone) {
+    switch (zone) {
+      case 'Nord': return 'Nord (Louga, Matam, Podor)';
+      case 'Centre': return 'Centre (Thiès, Diourbel, Kaolack)';
+      case 'Sud': return 'Sud (Ziguinchor, Sédhiou, Kolda)';
+      case 'Littoral': return 'Littoral (Dakar, Mbour, Saly)';
+      case 'Vallée': return 'Vallée du Fleuve (Saint-Louis, Dagana)';
+      default: return '';
+    }
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      _showErrorSnackBar('Veuillez corriger les erreurs dans le formulaire');
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     if (_sol == null || _zone == null || _saison == null) {
       _showErrorSnackBar('Veuillez remplir tous les champs');
       return;
     }
 
-    FocusScope.of(context).unfocus();
     setState(() => _loading = true);
 
     try {
-      // Extraire la zone simplifiée
       final zoneSimple = _zone!.split(' ')[0].replaceAll('(', '');
-
-      // Extraire la saison simplifiée
       final saisonSimple = _saison!.split(' ')[0].toLowerCase();
-
-      print("🚀 Lancement de l'analyse...");
-      print("🌱 Culture: ${widget.culture}");
-      print("📍 Zone: $zoneSimple");
-      print("📅 Saison: $saisonSimple");
 
       final result = await ApiService.analyseConditions(
         culture: widget.culture,
@@ -193,38 +144,17 @@ class _FormulaireScreenState extends State<FormulaireScreen>
         eau: _eau,
       );
 
-      print("📥 Résultat API: ${result['success']}");
-
       if (result['success'] == true) {
-        _showSuccessSnackBar('✅ Analyse réussie !');
-
-        await Future.delayed(const Duration(milliseconds: 500));
-
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ResultatScreen(
-              result: result['data'],
-            ),
+            builder: (_) => ResultatScreen(result: result['data']),
           ),
         );
       } else {
-        String errorMessage = result['message'] ?? 'Erreur inconnue';
-
-        if (errorMessage.contains('expirée') || result['statusCode'] == 401) {
-          _showErrorSnackBar('Session expirée, reconnexion nécessaire');
-          await Future.delayed(const Duration(seconds: 1));
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/login',
-            (route) => false,
-          );
-        } else {
-          _showErrorSnackBar(errorMessage);
-        }
+        _showErrorSnackBar(result['message'] ?? 'Erreur inconnue');
       }
     } catch (e) {
-      print("❌ Exception: $e");
       _showErrorSnackBar('Erreur: ${e.toString()}');
     } finally {
       setState(() => _loading = false);
@@ -233,338 +163,257 @@ class _FormulaireScreenState extends State<FormulaireScreen>
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: _buildAppBar(),
+      body: _loading ? _buildLoadingScreen() : _buildForm(),
     );
   }
 
-  Widget _buildSlider(
-    String label,
-    double value,
-    double min,
-    double max,
-    ValueChanged<double> onChanged,
-    String unit,
-    String tip,
-  ) {
-    return FadeTransition(
-      opacity: _fadeInAnim,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    if (tip.isNotEmpty)
-                      Text(
-                        tip,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green[100]!),
-                  ),
-                  child: Text(
-                    "${value.toStringAsFixed(1)} $unit",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: (max - min).toInt(),
-              label: value.toStringAsFixed(1),
-              activeColor: Colors.green[700],
-              inactiveColor: Colors.green[100],
-              onChanged: (val) {
-                setState(() => onChanged(val));
-                _updateIndicatif();
-              },
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("$min $unit", style: TextStyle(color: Colors.grey[500])),
-                Text("${(min + max) / 2} $unit",
-                    style: TextStyle(color: Colors.grey[500])),
-                Text("$max $unit", style: TextStyle(color: Colors.grey[500])),
-              ],
-            ),
-          ],
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.culture,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            widget.type == "serre" ? "Culture sous serre" : "Culture plein champ",
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      foregroundColor: Colors.green[800],
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.green[50]!, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDropdown(
-    String? value,
-    String label,
-    List<String> items,
-    ValueChanged<String?> onChanged,
-    String tip,
-  ) {
-    return FadeTransition(
-      opacity: _fadeInAnim,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (tip.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  tip,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ),
-            DropdownButtonFormField<String>(
-              value: value,
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle: TextStyle(color: Colors.grey[700]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[400]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[400]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.green[700]!, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              items: items
-                  .map((item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(item),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                setState(() => onChanged(val));
-                _updateIndicatif();
-              },
-              validator: (v) => v == null ? 'Ce champ est requis' : null,
-              style: TextStyle(fontSize: 16, color: Colors.grey[800]),
-              isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: Colors.green[700]),
-            ),
-          ],
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline),
+          onPressed: () => _showHelpDialog(),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildIndicatifCard() {
-    Color scoreColor;
-    String niveau;
-    if (_scoreIndicatif >= 80) {
-      scoreColor = Colors.green;
-      niveau = "Excellent";
-    } else if (_scoreIndicatif >= 65) {
-      scoreColor = Colors.green[400]!;
-      niveau = "Bon";
-    } else if (_scoreIndicatif >= 50) {
-      scoreColor = Colors.orange;
-      niveau = "Moyen";
-    } else if (_scoreIndicatif >= 35) {
-      scoreColor = Colors.orange[800]!;
-      niveau = "Défavorable";
-    } else {
-      scoreColor = Colors.red;
-      niveau = "Critique";
-    }
-
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Pré-analyse",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: scoreColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: scoreColor.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        "$niveau ",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: scoreColor,
-                        ),
-                      ),
-                      Text(
-                        "$_scoreIndicatif/100",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: scoreColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Recommandations préliminaires:",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 8),
-            ..._recoIndicatives.map((r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.info_outline, size: 16, color: scoreColor),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(r)),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCultureInfo() {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(
-              widget.type == "serre" ? Icons.home : Icons.agriculture,
-              color: Colors.green[700],
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.culture,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[800],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.type == "serre" ? "Culture sous serre" : "Culture plein champ",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
+  Widget _buildLoadingScreen() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: Colors.green[700]),
-          const SizedBox(height: 20),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green[400]!, Colors.green[700]!],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 3,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text(
             "Analyse en cours...",
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
               color: Colors.grey[700],
             ),
           ),
           const SizedBox(height: 8),
           Text(
             "Évaluation des conditions pour ${widget.culture}",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildForm() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header avec icône
+                _buildHeader(),
+                const SizedBox(height: 24),
+                
+                // Carte de localisation
+                _buildLocationCard(),
+                const SizedBox(height: 24),
+                
+                // Section paramètres environnementaux
+                _buildSectionTitle("🌡️ Conditions environnementales"),
+                const SizedBox(height: 16),
+                
+                // Sliders
+                _buildModernSlider(
+                  label: "Température",
+                  value: _temperature,
+                  min: 15,
+                  max: 45,
+                  unit: "°C",
+                  icon: Icons.thermostat,
+                  color: Colors.orange,
+                  onChanged: (val) => setState(() => _temperature = val),
+                ),
+                _buildModernSlider(
+                  label: "Humidité",
+                  value: _humidite,
+                  min: 20,
+                  max: 95,
+                  unit: "%",
+                  icon: Icons.water_drop,
+                  color: Colors.blue,
+                  onChanged: (val) => setState(() => _humidite = val),
+                ),
+                _buildModernSlider(
+                  label: "Disponibilité en eau",
+                  value: _eau,
+                  min: 0,
+                  max: 100,
+                  unit: "mm",
+                  icon: Icons.water,
+                  color: Colors.cyan,
+                  onChanged: (val) => setState(() => _eau = val),
+                ),
+                
+                const SizedBox(height: 24),
+                _buildSectionTitle("🌍 Paramètres du sol"),
+                const SizedBox(height: 16),
+                
+                // Dropdowns modernes
+                _buildModernDropdown(
+                  label: "Type de sol",
+                  value: _sol,
+                  items: sols,
+                  icon: Icons.landscape,
+                  onChanged: (val) => setState(() => _sol = val),
+                ),
+                const SizedBox(height: 16),
+                
+                _buildModernDropdown(
+                  label: "Zone géographique",
+                  value: _zone,
+                  items: zones,
+                  icon: Icons.location_on,
+                  onChanged: (val) => setState(() => _zone = val),
+                  isLocationAuto: _isLocationLoaded,
+                ),
+                const SizedBox(height: 16),
+                
+                _buildModernDropdown(
+                  label: "Saison de culture",
+                  value: _saison,
+                  items: saisons,
+                  icon: Icons.calendar_today,
+                  onChanged: (val) => setState(() => _saison = val),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Bouton d'action
+                _buildSubmitButton(),
+                
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green[600]!, Colors.green[800]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              widget.type == "serre" ? Icons.home_work : Icons.agriculture,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.culture,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Remplissez les informations ci-dessous pour obtenir une analyse personnalisée",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -572,141 +421,297 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Paramètres ${widget.culture}"),
-        backgroundColor: Colors.green[700],
-        elevation: 4,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: _loading
-            ? _buildLoadingIndicator()
-            : Form(
-                key: _formKey,
-                child: ListView(
+  Widget _buildLocationCard() {
+    return Consumer<LocationProvider>(
+      builder: (context, locationProvider, child) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _isLocationLoaded ? Colors.green[50] : Colors.orange[50],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _isLocationLoaded ? Colors.green[200]! : Colors.orange[200]!,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _isLocationLoaded ? Colors.green[100] : Colors.orange[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _isLocationLoaded ? Icons.location_on : Icons.location_searching,
+                  color: _isLocationLoaded ? Colors.green[700] : Colors.orange[700],
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildCultureInfo(),
-                    const SizedBox(height: 8),
                     Text(
-                      "Paramètres environnementaux",
+                      _isLocationLoaded ? "Zone détectée automatiquement" : "Détection en cours",
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _isLocationLoaded ? Colors.green[700] : Colors.orange[700],
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Ajustez les paramètres selon vos conditions réelles",
+                      _isLocationLoaded 
+                        ? "📍 ${locationProvider.currentZone} - ${_zone ?? ''}"
+                        : "Recherche de votre position géographique...",
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildSlider(
-                      "Température ambiante",
-                      _temperature,
-                      15,
-                      45,
-                      (val) => setState(() => _temperature = val),
-                      "°C",
-                      "Moyenne journalière",
-                    ),
-                    _buildSlider(
-                      "Humidité relative",
-                      _humidite,
-                      20,
-                      95,
-                      (val) => setState(() => _humidite = val),
-                      "%",
-                      "Pourcentage d'humidité dans l'air",
-                    ),
-                    _buildDropdown(
-                      _sol,
-                      "Type de sol dominant",
-                      sols,
-                      (val) => setState(() => _sol = val),
-                      "Sélectionnez le type de sol de votre parcelle",
-                    ),
-                    _buildDropdown(
-                      _zone,
-                      "Zone géographique",
-                      zones,
-                      (val) => setState(() => _zone = val),
-                      "Zone climatique de votre exploitation",
-                    ),
-                    _buildDropdown(
-                      _saison,
-                      "Saison de culture",
-                      saisons,
-                      (val) => setState(() => _saison = val),
-                      "Période de l'année pour la culture",
-                    ),
-                    _buildSlider(
-                      "Disponibilité en eau",
-                      _eau,
-                      0,
-                      100,
-                      (val) => setState(() => _eau = val),
-                      "mm/semaine",
-                      "Quantité d'eau disponible pour l'irrigation",
-                    ),
-                    _buildIndicatifCard(),
-                    const SizedBox(height: 24),
-                    FadeTransition(
-                      opacity: _fadeInAnim,
-                      child: ElevatedButton(
-                        onPressed: _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 4,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.analytics, size: 24),
-                            SizedBox(width: 12),
-                            Text(
-                              "Lancer l'analyse détaillée",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.arrow_back, size: 18, color: Colors.grey),
-                          SizedBox(width: 8),
-                          Text(
-                            "Changer de culture",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
+                        fontSize: 12,
+                        color: _isLocationLoaded ? Colors.green[600] : Colors.orange[600],
                       ),
                     ),
                   ],
                 ),
               ),
+              if (!_isLocationLoaded)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(Colors.orange[700]!),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey[800],
       ),
+    );
+  }
+
+  Widget _buildModernSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required String unit,
+    required IconData icon,
+    required Color color,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "${value.toStringAsFixed(1)} $unit",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            activeColor: color,
+            inactiveColor: color.withOpacity(0.2),
+            divisions: (max - min).toInt(),
+            label: value.toStringAsFixed(1),
+            onChanged: onChanged,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("$min $unit", style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+              Text("${((min + max) / 2).toInt()} $unit", style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+              Text("$max $unit", style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernDropdown({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required IconData icon,
+    required ValueChanged<String?> onChanged,
+    bool isLocationAuto = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: Colors.green[600], size: 22),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        items: items.map((item) {
+          return DropdownMenuItem(
+            value: item,
+            child: Row(
+              children: [
+                if (isLocationAuto && value == item)
+                  Icon(Icons.location_on, color: Colors.green, size: 16),
+                const SizedBox(width: 8),
+                Text(item),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        validator: (v) => v == null ? 'Champ requis' : null,
+        icon: Icon(Icons.arrow_drop_down, color: Colors.green[600]),
+        dropdownColor: Colors.white,
+        style: TextStyle(fontSize: 15, color: Colors.grey[800]),
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green[500]!, Colors.green[700]!],
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _submit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.analytics, size: 22),
+            SizedBox(width: 12),
+            Text(
+              "Lancer l'analyse détaillée",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("💡 Conseils", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHelpItem("🌡️ Température", "Température moyenne journalière de votre région"),
+            const SizedBox(height: 12),
+            _buildHelpItem("💧 Humidité", "Taux d'humidité dans l'air (moyenne journalière)"),
+            const SizedBox(height: 12),
+            _buildHelpItem("🌍 Type de sol", "Nature dominante de votre sol (sableux, argileux, etc.)"),
+            const SizedBox(height: 12),
+            _buildHelpItem("📍 Zone", "Votre zone géographique au Sénégal"),
+            const SizedBox(height: 12),
+            _buildHelpItem("💦 Eau", "Quantité d'eau disponible pour l'irrigation (mm/semaine)"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Fermer"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHelpItem(String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("• ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(description, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

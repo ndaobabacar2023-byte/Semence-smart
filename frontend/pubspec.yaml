@@ -1,18 +1,44 @@
-name: agriadvisor
-description: Application mobile Flutter AgriAdvisor
+name: semence_smart
+description: Application mobile Semence Smart
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.19.0 <3.0.0"  # Version plus récente
+  sdk: ">=2.19.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.1.0           # Version plus stable
-  shared_preferences: ^2.2.2  # AJOUTÉ
+    # pubspec.yaml
+  google_maps_flutter: ^2.5.0        # Google Maps
+  geolocator: ^10.1.0               # Localisation GPS
+  geocoding: ^2.1.1                 # Convertir coordonnées en adresse
+  permission_handler: ^11.0.1       # Gérer les permissions
+
+  font_awesome_flutter: ^10.7.0
+   # AJOUTER CES 2 PACKAGES POUR LA MÉTÉO
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  
+  # HTTP et API
+  http: ^1.1.0
+  
+  # Stockage local
+  shared_preferences: ^2.2.2
+  
+  # Notifications
   fluttertoast: ^9.0.0
+  
+  # Sécurité
   flutter_secure_storage: ^9.0.0
+  
+  # Formatage
   intl: ^0.18.1
+  
+  # Gestion d'état
+  provider: ^6.1.1
+  
+  # Variables d'environnement (pour le token IPinfo)
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -21,6 +47,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
   assets:
     - assets/images/tomate.jpg
     - assets/images/poivron.jpg
@@ -28,3 +55,4 @@ flutter:
     - assets/images/arachide.jpeg
     - assets/images/serre.jpg
     - assets/images/plein_air.jpeg
+    - .env
