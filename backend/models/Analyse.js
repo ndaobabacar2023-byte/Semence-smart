@@ -1,20 +1,118 @@
 const mongoose = require('mongoose');
 
-const analyseSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  culture: { type: String, required: true },
-  typeCulture: { type: String, required: true },
-  temperature: Number,
-  humidite: Number,
-  sol: String,
-  eau: Number,
-  zone: String,
-  saison: String,
-  score: Number,
-  status: String,
-  recommandations: [String],
-  variete: Object,
-  dateAnalyse: { type: Date, default: Date.now }
+const AnalyseSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+
+  culture: {
+    type: String,
+    required: true
+  },
+
+  typeCulture: {
+    type: String,
+    enum: ['serre', 'plein_air'],
+    required: true
+  },
+
+  mode_culture: {
+    type: String,
+    enum: ['serre', 'plein_air'],
+    default: 'plein_air'
+  },
+
+  temperature: {
+    type: Number,
+    required: true
+  },
+
+  humidite: {
+    type: Number,
+    required: true
+  },
+
+  sol: {
+    type: String,
+    required: true
+  },
+
+  eau: {
+    type: Number,
+    required: true
+  },
+
+  zone: {
+    type: String,
+    required: true
+  },
+
+  saison: {
+    type: String,
+    required: true
+  },
+
+  score: {
+    type: Number,
+    required: true
+  },
+
+  // 🔥 UNIFICATION DU STATUT (IMPORTANT)
+  statut: {
+    type: String,
+    enum: ['pending', 'validated', 'corrected', 'rejected'],
+    default: 'pending'
+  },
+
+  recommandations: [{
+    type: String
+  }],
+
+  variete: {
+    type: String,
+    default: null
+  },
+
+  // =====================
+  // CORRECTIONS TECHNICIEN
+  // =====================
+  correction: {
+    technicienId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    correctedAt: Date,
+    comment: String,
+    recommandationsCorrigees: [String],
+    varieteCorrigee: String
+  },
+
+  // =====================
+  // VALIDATION TECHNICIEN
+  // =====================
+  validation: {
+    technicienId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    validatedAt: Date
+  },
+
+  dateAnalyse: {
+    type: Date,
+    default: Date.now
+  }
+
+}, {
+  timestamps: true
 });
 
-module.exports = mongoose.model('Analyse', analyseSchema);
+// INDEX OPTIMISÉS
+AnalyseSchema.index({ userId: 1, createdAt: -1 });
+AnalyseSchema.index({ culture: 1 });
+AnalyseSchema.index({ zone: 1 });
+AnalyseSchema.index({ statut: 1 });
+
+module.exports = mongoose.model('Analyse', AnalyseSchema);

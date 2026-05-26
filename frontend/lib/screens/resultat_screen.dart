@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/historique_service.dart';  // ← AJOUTER CET IMPORT
+import '../services/historique_service.dart';
+import '../services/wolof_message_generator.dart';
+import '../services/wolof_tts_service.dart';
+import '../widgets/voice_button.dart';
 
 class ResultatScreen extends StatefulWidget {
   final Map<String, dynamic> result;
@@ -12,12 +15,44 @@ class ResultatScreen extends StatefulWidget {
 
 class _ResultatScreenState extends State<ResultatScreen> {
   bool _showSousScores = false;
-  bool _isSaved = false;  // ← AJOUTER CETTE VARIABLE
+  bool _isSaved = false;
+  
+  // Service TTS
+  final WolofTTSService _ttsService = WolofTTSService();
+  String _wolofMessage = '';
 
   @override
   void initState() {
     super.initState();
-    _checkIfSaved();  // ← VÉRIFIER SI DÉJÀ SAUVEGARDÉ
+    _checkIfSaved();
+    _generateWolofMessage();
+    _autoPlayAudio();
+  }
+
+  // Générer le message en wolof
+  void _generateWolofMessage() {
+    _wolofMessage = WolofMessageGenerator.generateAnalysisMessage(
+      culture: widget.result['culture'] ?? 'Culture',
+      score: widget.result['score'] ?? 0,
+      message: widget.result['message'] ?? '',
+      recommandations: (widget.result['recommandations'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ?? [],
+      typeCulture: widget.result['typeCulture'],
+    );
+  }
+
+  // Lecture automatique
+  Future<void> _autoPlayAudio() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    await _ttsService.speak(_wolofMessage);
+    setState(() {});
+  }
+
+  // Arrêter l'audio
+  Future<void> _stopAudio() async {
+    await _ttsService.stop();
+    setState(() {});
   }
 
   // Vérifier si l'analyse est déjà sauvegardée
@@ -35,7 +70,6 @@ class _ResultatScreenState extends State<ResultatScreen> {
 
   // Sauvegarder l'analyse
   Future<void> _saveAnalyse() async {
-    // Ajouter la date si non présente
     Map<String, dynamic> analyseToSave = Map.from(widget.result);
     if (!analyseToSave.containsKey('date')) {
       analyseToSave['date'] = DateTime.now().toIso8601String();
@@ -62,7 +96,6 @@ class _ResultatScreenState extends State<ResultatScreen> {
     );
   }
 
-  // Colorer le statut
   Color getColor(String status) {
     switch (status.toLowerCase()) {
       case 'excellent':
@@ -205,6 +238,12 @@ class _ResultatScreenState extends State<ResultatScreen> {
   }
 
   @override
+  void dispose() {
+    _ttsService.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final result = widget.result;
     final success = result['success'] ?? true;
@@ -302,7 +341,12 @@ class _ResultatScreenState extends State<ResultatScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          // ← BOUTON DE SAUVEGARDE AJOUTÉ
+          // Bouton vocal IA en Wolof
+          VoiceButton(
+            textToSpeak: _wolofMessage,
+            size: 40,
+          ),
+          // Bouton de sauvegarde
           IconButton(
             icon: Icon(
               _isSaved ? Icons.check_circle : Icons.save,
@@ -364,7 +408,6 @@ class _ResultatScreenState extends State<ResultatScreen> {
                               ],
                             ),
                           ),
-                          // Indicateur de sauvegarde
                           if (_isSaved)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -405,7 +448,7 @@ class _ResultatScreenState extends State<ResultatScreen> {
                       
                       const SizedBox(height: 16),
                       
-                      // Bouton pour afficher les sous-scores
+                      // Détails des critères
                       if (sousScores != null && sousScores.isNotEmpty)
                         Card(
                           elevation: 0,

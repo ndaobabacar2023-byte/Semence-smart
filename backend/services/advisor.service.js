@@ -68,7 +68,21 @@ const TYPES_SOL = {
   'argileux': 'Rétenteur d\'eau, riche en nutriments',
   'limoneux': 'Équilibre eau/air, fertile',
   'lateritique': 'Acide, pauvre en matière organique',
-  'tourbeux': 'Riche en matière organique, acide'
+  'tourbeux': 'Riche en matière organique, acide',
+  'sablo-argileux': 'Mélange sable et argile, bon équilibre',
+  'sablo-limoneux': 'Mélange sable et limon, bien drainant',
+  'limono-sableux': 'Mélange limon et sable, fertile et drainant'
+};
+
+// Mapping des sols composés vers sols simples
+const SOL_MAPPING = {
+  'sablo-argileux': ['sableux', 'argileux'],
+  'sablo-limoneux': ['sableux', 'limoneux'],
+  'limono-sableux': ['limoneux', 'sableux'],
+  'argilo-limoneux': ['argileux', 'limoneux'],
+  'sablo-limon-argileux': ['sableux', 'limoneux', 'argileux'],
+  'argilo-sableux': ['argileux', 'sableux'],
+  'limono-argileux': ['limoneux', 'argileux']
 };
 
 // ==================== FONCTIONS UTILITAIRES ====================
@@ -87,7 +101,8 @@ function validateInput(input) {
     sol: 'limoneux',
     eau: 25,
     zone: 'Centre',
-    saison: 'hivernage'
+    saison: 'hivernage',
+    mode_culture: 'plein_air'
   };
   
   const validated = { ...defaults, ...input };
@@ -142,13 +157,29 @@ function validateInput(input) {
     validated.sol = 'limoneux';
   }
   
+  // Validation du mode culture
+  if (validated.mode_culture !== 'serre' && validated.mode_culture !== 'plein_air') {
+    validated.mode_culture = 'plein_air';
+  }
+  
   return validated;
 }
 
 // ==================== FONCTIONS DE COMPARAISON ====================
 
-// Comparaison température adaptée au Sénégal
-function compareTemperature(val, min, max, zone) {
+// Mapping des sols composés
+function mapComplexSoil(inputSol) {
+  const normalized = normalizeText(inputSol);
+  for (const [complex, simples] of Object.entries(SOL_MAPPING)) {
+    if (normalized.includes(complex) || complex.includes(normalized)) {
+      return simples;
+    }
+  }
+  return [normalized];
+}
+
+// Comparaison température avec prise en compte du mode culture
+function compareTemperature(val, min, max, zone, modeCulture) {
   if (!min || !max) return 50;
   
   const valNum = Number(val);
@@ -156,25 +187,25 @@ function compareTemperature(val, min, max, zone) {
   const maxNum = Number(max);
   
   if (isNaN(valNum) || isNaN(minNum) || isNaN(maxNum)) return 50;
+  
+  // Les serres permettent des températures plus extrêmes
+  const tolerance = modeCulture === 'serre' ? 5 : 2;
   
   // Ajustement selon la zone
   const zoneInfo = ZONES_SENEGAL[zone] || ZONES_SENEGAL['Centre'];
   const tempMoyenneZone = zoneInfo.temp_moyenne;
   
-  // Tolérance plus large pour les zones chaudes
-  const tolerance = zone.includes('Nord') ? 5 : 3;
-  
   if (valNum >= minNum && valNum <= maxNum) return 100;
   
   const diff = valNum < minNum ? minNum - valNum : valNum - maxNum;
   
-  if (diff <= tolerance) return 70;
+  if (diff <= tolerance) return 75;
   if (diff <= tolerance * 2) return 40;
   return 10;
 }
 
-// Comparaison humidité adaptée au Sénégal
-function compareHumidite(val, min, max, saison) {
+// Comparaison humidité
+function compareHumidite(val, min, max, saison, modeCulture) {
   if (!min || !max) return 50;
   
   const valNum = Number(val);
@@ -183,8 +214,9 @@ function compareHumidite(val, min, max, saison) {
   
   if (isNaN(valNum) || isNaN(minNum) || isNaN(maxNum)) return 50;
   
-  // Ajustement selon la saison
-  const tolerance = saison === 'hivernage' ? 15 : 10;
+  // Ajustement selon la saison et mode culture
+  let tolerance = saison === 'hivernage' ? 15 : 10;
+  if (modeCulture === 'serre') tolerance += 5;
   
   if (valNum >= minNum && valNum <= maxNum) return 100;
   
@@ -195,45 +227,54 @@ function compareHumidite(val, min, max, saison) {
   return 5;
 }
 
-// Comparaison sol adaptée aux sols sénégalais
+// Comparaison sol avec support des sols composés
 function compareSol(inputSol, solsRecommandes, zone) {
   if (!inputSol || !solsRecommandes || !Array.isArray(solsRecommandes) || solsRecommandes.length === 0) {
     return 50;
   }
   
-  const normalizedInput = normalizeText(inputSol);
-  const matches = solsRecommandes.map(s => normalizeText(s));
+  // Normaliser les entrées
+  const normalizedInputSols = mapComplexSoil(inputSol);
+  const normalizedRecommSols = solsRecommandes.map(s => normalizeText(s));
   
   // Sols dominants de la zone
   const zoneSols = (ZONES_SENEGAL[zone]?.sols_dominants || []).map(s => normalizeText(s));
   
-  if (matches.includes(normalizedInput)) {
-    // Bonus si le sol est aussi dominant dans la zone
-    if (zoneSols.includes(normalizedInput)) {
-      return 100;
-    }
-    return 90;
-  }
+  // Vérifier les correspondances
+  let bestScore = 0;
   
-  // Vérification partielle
-  for (const s of matches) {
-    if (s.includes(normalizedInput) || normalizedInput.includes(s)) return 60;
+  for (const input of normalizedInputSols) {
+    for (const recom of normalizedRecommSols) {
+      if (input === recom || recom.includes(input) || input.includes(recom)) {
+        // Bonus si le sol est dominant dans la zone
+        if (zoneSols.includes(input) || zoneSols.includes(recom)) {
+          bestScore = Math.max(bestScore, 100);
+        } else {
+          bestScore = Math.max(bestScore, 90);
+        }
+      } else if (input.length > 3 && recom.length > 3 && (input.includes(recom) || recom.includes(input))) {
+        bestScore = Math.max(bestScore, 60);
+      }
+    }
   }
   
   // Vérification avec les sols de la zone
-  for (const s of zoneSols) {
-    if (s.includes(normalizedInput) || normalizedInput.includes(s)) return 40;
+  for (const input of normalizedInputSols) {
+    for (const zoneSol of zoneSols) {
+      if (input === zoneSol || zoneSol.includes(input) || input.includes(zoneSol)) {
+        bestScore = Math.max(bestScore, 40);
+      }
+    }
   }
   
-  return 20;
+  return bestScore || 20;
 }
 
-// Comparaison eau adaptée au Sénégal
+// Comparaison eau
 function compareEau(val, saison, cultureBesoinEau) {
   const valNum = Number(val);
   if (isNaN(valNum) || valNum === 0) return 50;
   
-  // Correction de la faute de frappe : cultureBesoinEai → cultureBesoinEau
   const besoinMultiplicateur = {
     'faible': 0.7,
     'moyen': 1.0,
@@ -255,26 +296,23 @@ function compareEau(val, saison, cultureBesoinEau) {
   return 10;
 }
 
-// Comparaison saison adaptée au Sénégal
+// Comparaison saison
 function compareSaison(inputSaison, cultureDoc) {
   if (!inputSaison) return 50;
   
   const s = normalizeText(inputSaison);
   
-  // Vérifier dans les recommandations générales
   const recommandations = cultureDoc.recommandations_generales || [];
   const foundInRecommandations = recommandations.some(r => {
     if (!r) return false;
     return normalizeText(r).includes(s) || s.includes(normalizeText(r));
   });
   
-  // Vérifier la saison optimale de la culture
   const saisonOptimale = cultureDoc.saison_optimale || '';
   const isSaisonOptimale = normalizeText(saisonOptimale).includes(s);
   
   if (foundInRecommandations || isSaisonOptimale) return 100;
   
-  // Vérifier dans les variétés
   const varietes = cultureDoc.varietes || [];
   const foundInVarietes = varietes.some(v => {
     const saisonVariete = v.saison_recommandee || '';
@@ -286,7 +324,6 @@ function compareSaison(inputSaison, cultureDoc) {
 
 // ==================== FONCTIONS DE CALCUL ====================
 
-// Calcul du score pondéré
 function computeWeightedScore(subscores, weights = DEFAULT_WEIGHTS) {
   let score = 0;
   let totalWeight = 0;
@@ -301,7 +338,6 @@ function computeWeightedScore(subscores, weights = DEFAULT_WEIGHTS) {
   return totalWeight === 0 ? Math.round(score) : Math.round(score / totalWeight);
 }
 
-// Détermination du statut global
 function statusFromScore(score) {
   if (score >= 80) return 'excellent';
   if (score >= 65) return 'bon';
@@ -310,16 +346,18 @@ function statusFromScore(score) {
   return 'critique';
 }
 
-// Sélection de la meilleure variété pour le Sénégal
+// Sélection de la meilleure variété avec prise en compte du rendement et prix
 function bestVariete(cultureDoc, input) {
   const varietes = cultureDoc.varietes || [];
   if (!varietes.length) return null;
 
   const WEIGHTS = { 
-    temperature: 0.35, 
-    humidite: 0.25, 
-    sol: 0.20,
-    saison: 0.20 
+    temperature: 0.30, 
+    humidite: 0.20, 
+    sol: 0.15,
+    saison: 0.15,
+    rendement: 0.10,
+    prix: 0.10
   };
   
   let best = varietes[0];
@@ -336,7 +374,8 @@ function bestVariete(cultureDoc, input) {
         input.temperature || 25, 
         tempMin, 
         tempMax, 
-        input.zone || 'Centre'
+        input.zone || 'Centre',
+        input.mode_culture || 'plein_air'
       ) * WEIGHTS.temperature;
       
       // Humidité
@@ -346,7 +385,8 @@ function bestVariete(cultureDoc, input) {
         input.humidite || 50, 
         humiditeMin, 
         humiditeMax, 
-        input.saison || 'saison sèche'
+        input.saison || 'saison sèche',
+        input.mode_culture || 'plein_air'
       ) * WEIGHTS.humidite;
       
       // Sol
@@ -366,13 +406,32 @@ function bestVariete(cultureDoc, input) {
         score += 40 * WEIGHTS.saison;
       }
 
-      // Bonus pour résistance à la sécheresse (important au Sénégal)
+      // Bonus pour résistance à la sécheresse
       if (v.resistance_secheresse) {
         score += 15;
       }
 
+      // Bonus pour résistance à la chaleur
+      if (v.resistance_chaleur && v.resistance_chaleur >= 7) {
+        score += 10;
+      }
+
+      // Bonus rendement élevé
+      if (v.rendement_moyen && v.rendement_moyen > 30) {
+        score += 10 * WEIGHTS.rendement * 100;
+      } else if (v.rendement_moyen && v.rendement_moyen > 20) {
+        score += 5 * WEIGHTS.rendement * 100;
+      }
+
+      // Bonus prix abordable
+      if (v.prix_semence && v.prix_semence < 15000) {
+        score += 10 * WEIGHTS.prix * 100;
+      } else if (v.prix_semence && v.prix_semence < 25000) {
+        score += 5 * WEIGHTS.prix * 100;
+      }
+
       // Bonus si variété adaptée à la zone
-      if (v.nom && input.zone && v.nom.toLowerCase().includes(input.zone.substring(0, 3).toLowerCase())) {
+      if (v.zone_adaptation && v.zone_adaptation.includes(input.zone)) {
         score += 10;
       }
 
@@ -393,7 +452,7 @@ function bestVariete(cultureDoc, input) {
   };
 }
 
-// Génération de recommandations adaptées au Sénégal
+// Génération de recommandations améliorées
 function generateRecommandations(subscores, input, cultureDoc, bestVariete) {
   const rec = [];
   const zoneInfo = ZONES_SENEGAL[input.zone] || ZONES_SENEGAL['Centre'];
@@ -402,6 +461,9 @@ function generateRecommandations(subscores, input, cultureDoc, bestVariete) {
   if (subscores.temperature < 60) {
     if (input.temperature < (cultureDoc.temp_min || 20)) {
       rec.push(`🌡️ Température trop basse (${input.temperature}°C). Protéger les plants la nuit avec des couvertures.`);
+      if (input.mode_culture === 'serre') {
+        rec.push(`🏠 En serre, vous pouvez chauffer légèrement la nuit.`);
+      }
     } else {
       rec.push(`🌡️ Température trop élevée (${input.temperature}°C). Ombrer les plants et augmenter l'arrosage matinal.`);
     }
@@ -453,6 +515,14 @@ function generateRecommandations(subscores, input, cultureDoc, bestVariete) {
     rec.push(`📍 Zone Sud (${zoneInfo.description}): Attention aux maladies fongiques en période humide. Utiliser des variétés résistantes.`);
   }
   
+  if (input.zone === 'Littoral') {
+    rec.push(`📍 Zone Littoral (${zoneInfo.description}): Bonne pour les cultures maraîchères sous serre. Attention au sel dans les sols.`);
+  }
+  
+  if (input.zone === 'Vallée') {
+    rec.push(`📍 Zone Vallée (${zoneInfo.description}): Sols alluviaux très fertiles. Idéal pour l'oignon, la tomate et le riz.`);
+  }
+  
   if (input.saison === 'hivernage') {
     rec.push(`☔ Hivernage: Planifier les semis après les premières pluies bien établies.`);
   }
@@ -461,8 +531,16 @@ function generateRecommandations(subscores, input, cultureDoc, bestVariete) {
     rec.push(`🌵 Saison sèche: Irrigation indispensable. Utiliser du paillage pour conserver l'humidité.`);
   }
   
-  if (bestVariete && bestVariete.resistance_secheresse) {
-    rec.push(`✅ Variété "${bestVariete.nom}" fortement recommandée pour sa résistance à la sécheresse.`);
+  if (bestVariete) {
+    if (bestVariete.resistance_secheresse) {
+      rec.push(`✅ Variété "${bestVariete.nom}" fortement recommandée pour sa résistance à la sécheresse.`);
+    }
+    if (bestVariete.rendement_moyen && bestVariete.rendement_moyen > 25) {
+      rec.push(`📈 Variété "${bestVariete.nom}" à haut rendement (${bestVariete.rendement_moyen} t/ha).`);
+    }
+    if (bestVariete.prix_semence && bestVariete.prix_semence < 15000) {
+      rec.push(`💰 Variété "${bestVariete.nom}" au prix abordable (${bestVariete.prix_semence.toLocaleString()} FCFA).`);
+    }
   }
   
   // Recommandations générales selon le score
@@ -475,6 +553,10 @@ function generateRecommandations(subscores, input, cultureDoc, bestVariete) {
     rec.push('⚠️ Conditions difficiles. Considérer une culture alternative mieux adaptée.');
   }
   
+  if (input.mode_culture === 'serre') {
+    rec.push('🏠 Culture sous serre: Contrôlez la ventilation et l\'ombrage pour éviter les pics de chaleur.');
+  }
+  
   if (rec.length === 0) {
     rec.push('🎉 Conditions optimales pour la culture !');
     rec.push('Suivre les pratiques culturales habituelles recommandées pour la région.');
@@ -485,17 +567,15 @@ function generateRecommandations(subscores, input, cultureDoc, bestVariete) {
 
 // ==================== FONCTION PRINCIPALE ====================
 
-// Fonction principale d'évaluation adaptée au Sénégal
 function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
   try {
     console.log('🔍 Début évaluation conditions Sénégal...');
     
-    // Valider les données d'entrée
     const validatedInput = validateInput(input);
     console.log('Données validées:', validatedInput);
     console.log('Culture:', cultureDoc.nom || 'Culture non nommée');
+    console.log('Mode culture:', validatedInput.mode_culture);
     
-    // S'assurer que cultureDoc a les propriétés nécessaires
     const safeCultureDoc = {
       nom: cultureDoc.nom || 'Culture',
       description: cultureDoc.description || '',
@@ -514,13 +594,13 @@ function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
     
     const subscores = {};
     
-    // Calculer chaque sous-score avec gestion des erreurs
     try {
       subscores.temperature = compareTemperature(
         validatedInput.temperature, 
         safeCultureDoc.temp_min, 
         safeCultureDoc.temp_max,
-        validatedInput.zone
+        validatedInput.zone,
+        validatedInput.mode_culture
       );
     } catch (e) {
       subscores.temperature = 50;
@@ -532,7 +612,8 @@ function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
         validatedInput.humidite, 
         safeCultureDoc.humidite_min, 
         safeCultureDoc.humidite_max,
-        validatedInput.saison
+        validatedInput.saison,
+        validatedInput.mode_culture
       );
     } catch (e) {
       subscores.humidite = 50;
@@ -580,7 +661,6 @@ function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
       varieteResult?.variete
     );
     
-    // Message personnalisé selon le statut
     let message = '';
     let emoji = '';
     
@@ -633,8 +713,10 @@ function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
         },
         sols: varieteResult.variete.sols_recommandes || safeCultureDoc.sols_recommandes,
         resistance_secheresse: varieteResult.variete.resistance_secheresse || false,
+        resistance_chaleur: varieteResult.variete.resistance_chaleur || 5,
         cycle_vegetatif: varieteResult.variete.cycle_vegetatif || safeCultureDoc.cycle_moyen,
-        rendement_estime: varieteResult.variete.rendement_estime || safeCultureDoc.rendement_moyen,
+        rendement_moyen: varieteResult.variete.rendement_moyen || null,
+        prix_semence: varieteResult.variete.prix_semence || null,
         score_variete: varieteResult.score,
         varietes_disponibles: varieteResult.totalVarietes
       } : null,
@@ -643,9 +725,10 @@ function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
         zone_info: ZONES_SENEGAL[validatedInput.zone],
         saison: validatedInput.saison,
         saison_info: SAISONS_SENEGAL[validatedInput.saison],
+        mode_culture: validatedInput.mode_culture,
         culture: safeCultureDoc.nom,
         date_evaluation: new Date().toISOString(),
-        version_service: '1.0.0'
+        version_service: '2.0.0'
       }
     };
     
@@ -669,22 +752,18 @@ function evaluateConditions(input, cultureDoc, weights = DEFAULT_WEIGHTS) {
 
 // ==================== FONCTIONS D'AIDE ====================
 
-// Obtenir les informations des zones
 function getZonesInfo() {
   return ZONES_SENEGAL;
 }
 
-// Obtenir les informations des saisons
 function getSaisonsInfo() {
   return SAISONS_SENEGAL;
 }
 
-// Obtenir les types de sol
 function getSolTypes() {
   return TYPES_SOL;
 }
 
-// Calcul rapide pour une zone spécifique
 function quickAssessment(cultureDoc, zone, saison) {
   const zoneInfo = ZONES_SENEGAL[zone] || ZONES_SENEGAL['Centre'];
   const saisonInfo = SAISONS_SENEGAL[saison] || SAISONS_SENEGAL['hivernage'];
@@ -695,13 +774,12 @@ function quickAssessment(cultureDoc, zone, saison) {
     sol: zoneInfo.sols_dominants[0],
     eau: saisonInfo.pluviometrie || 25,
     zone: zone,
-    saison: saison
+    saison: saison,
+    mode_culture: 'plein_air'
   };
   
   return evaluateConditions(input, cultureDoc);
 }
-
-// ==================== EXPORT ====================
 
 module.exports = {
   evaluateConditions,

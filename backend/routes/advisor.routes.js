@@ -1,18 +1,40 @@
 // routes/advisor.routes.js
+
 const express = require('express');
 const router = express.Router();
+
 const advisorController = require('../controllers/advisor.controller');
+
+// ✅ IMPORT DU MIDDLEWARE AUTH
+const { auth } = require('../middleware/auth.middleware');
 
 console.log('🔄 Chargement de advisor.routes.js avec controller');
 
-// Route d'analyse
-router.post('/analyse', advisorController.analyse);
+// ==========================
+// ANALYSE (PROTÉGÉE)
+// ==========================
+router.post(
+  '/analyse',
+  auth,
+  advisorController.analyse
+);
 
-// Historique
-router.get('/historique', advisorController.historique);
+// ==========================
+// HISTORIQUE (PROTÉGÉE)
+// ==========================
+router.get(
+  '/historique',
+  auth,
+  advisorController.historique
+);
 
-// Test
-router.get('/test', advisorController.test);
+// ==========================
+// TEST
+// ==========================
+router.get(
+  '/test',
+  advisorController.test
+);
 
 console.log('✅ Routes advisor configurées avec controller');
 

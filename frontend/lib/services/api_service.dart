@@ -270,4 +270,260 @@ static Future<Map<String, dynamic>> analyseConditions({
       };
     }
   }
+
+
+
+  static Future<Map<String, dynamic>> getNotifications() async {
+  try {
+    final token = await getToken();
+
+    if (token == null) {
+      return {
+        "success": false,
+        "message": "Utilisateur non connecté"
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse("$baseUrl/notifications"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json"
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return {
+      "success": false,
+      "message": "Erreur ${response.statusCode}"
+    };
+  } catch (e) {
+    return {
+      "success": false,
+      "message": e.toString()
+    };
+  }
+}
+
+  // Récupérer toutes les analyses (technicien)
+  static Future<Map<String, dynamic>> getTechnicienAnalyses({String? status}) async {
+  final token = await getToken();
+
+  String url = "$baseUrl/technicien/analyses";
+
+  if (status!= null && status != 'all') {
+    url += '?status=$status'; // OK backend accepte status
+  }
+
+  final response = await http.get(
+    Uri.parse(url),
+    headers: {
+      "Authorization": "Bearer $token",
+    },
+  );
+
+  return jsonDecode(response.body);
+}
+  
+  // Récupérer une analyse par ID
+  static Future<Map<String, dynamic>> getAnalyseById(String id) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      final response = await http.get(
+        Uri.parse("$baseUrl/technicien/analyses/$id"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
+  
+  // Valider une analyse
+  static Future<Map<String, dynamic>> validateAnalyse(String id) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      final response = await http.put(
+        Uri.parse("$baseUrl/technicien/analyses/$id/validate"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
+  
+  // Corriger une analyse
+  static Future<Map<String, dynamic>> correctAnalyse(
+    String id, {
+    required String comment,
+    required List<String> recommandations,
+    String? variete,
+  }) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      final response = await http.put(
+        Uri.parse("$baseUrl/technicien/analyses/$id/correct"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "comment": comment,
+          "recommandations": recommandations,
+          "variete": variete,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
+  
+  // Récupérer les statistiques technicien
+  static Future<Map<String, dynamic>> getTechnicienStats() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      final response = await http.get(
+        Uri.parse("$baseUrl/technicien/stats"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
+  
+  // Récupérer toutes les variétés
+  static Future<Map<String, dynamic>> getVarietes({String? culture, String? zone}) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      String url = "$baseUrl/technicien/varietes";
+      final params = [];
+      if (culture != null) params.add("culture=$culture");
+      if (zone != null) params.add("zone=$zone");
+      if (params.isNotEmpty) url += "?${params.join("&")}";
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
+  
+  // Ajouter une variété
+  static Future<Map<String, dynamic>> addVariete(Map<String, dynamic> variete) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      final response = await http.post(
+        Uri.parse("$baseUrl/technicien/varietes"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode(variete),
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
+  
+  // Supprimer une variété
+  static Future<Map<String, dynamic>> deleteVariete(String id) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {"success": false, "message": "Non authentifié"};
+      }
+      
+      final response = await http.delete(
+        Uri.parse("$baseUrl/technicien/varietes/$id"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {"success": false, "message": "Erreur ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Erreur: $e"};
+    }
+  }
 }

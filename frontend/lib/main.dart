@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/location_provider.dart';
+import 'providers/technicien_provider.dart';  // ← AJOUTER CET IMPORT
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -10,6 +11,7 @@ import 'screens/type_culture_screen.dart';
 import 'screens/choix_culture_screen.dart';
 import 'screens/formulaire_screen.dart';
 import 'screens/resultat_screen.dart';
+import 'screens/technicien/technicien_dashboard.dart';  // ← AJOUTER CET IMPORT
 
 Future<void> main() async {
   await dotenv.load();
@@ -17,6 +19,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LocationProvider()),
+        ChangeNotifierProvider(create: (_) => TechnicienProvider()),  // ← AJOUTER CETTE LIGNE
       ],
       child: const MyApp(),
     ),
@@ -29,7 +32,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Semence Smart',  // ← Nom changé
+      title: 'Semence Smart',
       theme: ThemeData(
         primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -56,6 +59,7 @@ class MyApp extends StatelessWidget {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
           return ResultatScreen(result: args['result']);
         },
+        '/technicien': (context) => const TechnicienDashboard(),  // ← AJOUTER CETTE ROUTE
       },
       debugShowCheckedModeBanner: false,
     );

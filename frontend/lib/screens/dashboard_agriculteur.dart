@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import 'login_screen.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
+import 'notifications_screen.dart';
 
 class DashboardAgriculteur extends StatefulWidget {
   final String nom;
@@ -23,6 +24,39 @@ class DashboardAgriculteur extends StatefulWidget {
 
 class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
   
+  // ===== NOTIFICATIONS =====
+  int unreadCount = 0;
+  List notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadNotifications();
+    _startAutoRefresh();
+  }
+
+  // ===== CHARGER NOTIFICATIONS =====
+  void loadNotifications() async {
+    final res = await ApiService.getNotifications();
+
+    if (res['success'] == true) {
+      setState(() {
+        notifications = res['data'];
+        unreadCount = notifications.where((n) => n['isRead'] == false).length;
+      });
+    }
+  }
+
+  // ===== AUTO REFRESH =====
+  void _startAutoRefresh() async {
+    Future.doWhile(() async {
+      await Future.delayed(Duration(seconds: 10));
+      loadNotifications();
+      return mounted;
+    });
+  }
+
+  // ===== LOGOUT =====
   void logout() async {
     await ApiService.logout();
     Fluttertoast.showToast(
@@ -36,8 +70,8 @@ class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
     );
   }
 
+  // ===== ANALYSE =====
   void analyseConditions() {
-    // Ici tu peux naviguer vers l'écran d'analyse
     Fluttertoast.showToast(
       msg: "Fonction analyse en cours de développement",
       backgroundColor: Colors.blue,
@@ -51,13 +85,53 @@ class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
         title: Text("Dashboard Agriculteur"),
         backgroundColor: AppColors.primary,
         actions: [
+
+          // ===== NOTIFICATION ICON =====
+          Stack(
+            children: [
+              IconButton(
+                icon: Icon(Icons.notifications),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsScreen(),
+                    ),
+                  );
+                  loadNotifications(); // refresh après retour
+                },
+              ),
+
+              if (unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      unreadCount.toString(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
           IconButton(
             icon: Icon(Icons.logout),
             onPressed: logout,
-            tooltip: "Se déconnecter",
           )
         ],
       ),
+
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -74,6 +148,7 @@ class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+
                     Text(
                       "Bienvenue ${widget.nom} ${widget.prenom}",
                       style: TextStyle(
@@ -82,18 +157,24 @@ class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     SizedBox(height: 10),
+
                     Text(
                       "Rôle : ${widget.role}",
                       style: TextStyle(color: Colors.white70, fontSize: 16),
                     ),
+
                     SizedBox(height: 30),
 
+                    // ===== ANALYSE =====
                     ElevatedButton.icon(
                       onPressed: analyseConditions,
                       icon: Icon(Icons.thermostat, color: Colors.white),
-                      label: Text("Analyser conditions",
-                          style: TextStyle(color: Colors.white)),
+                      label: Text(
+                        "Analyser conditions",
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         minimumSize: Size(double.infinity, 50),
@@ -102,16 +183,22 @@ class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
 
                     SizedBox(height: 20),
 
+                    // ===== NOTIFICATIONS =====
                     ElevatedButton.icon(
-                      onPressed: () {
-                        Fluttertoast.showToast(
-                          msg: "Conseils à venir",
-                          backgroundColor: Colors.green,
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NotificationsScreen(),
+                          ),
                         );
+                        loadNotifications();
                       },
-                      icon: Icon(Icons.lightbulb, color: Colors.white),
-                      label: Text("Voir conseils",
-                          style: TextStyle(color: Colors.white)),
+                      icon: Icon(Icons.notifications, color: Colors.white),
+                      label: Text(
+                        "Voir notifications",
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         minimumSize: Size(double.infinity, 50),
@@ -120,11 +207,14 @@ class _DashboardAgriculteurState extends State<DashboardAgriculteur> {
 
                     SizedBox(height: 20),
 
+                    // ===== LOGOUT =====
                     ElevatedButton.icon(
                       onPressed: logout,
                       icon: Icon(Icons.logout, color: Colors.white),
-                      label: Text("Se déconnecter",
-                          style: TextStyle(color: Colors.white)),
+                      label: Text(
+                        "Se déconnecter",
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         minimumSize: Size(double.infinity, 50),

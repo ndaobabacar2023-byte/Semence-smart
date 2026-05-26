@@ -8,7 +8,8 @@ dotenv.config();
 const authRoutes = require('./routes/auth.routes');
 const cultureRoutes = require('./routes/culture.routes');
 const advisorRoutes = require('./routes/advisor.routes');
-
+const technicienRoutes = require('./routes/technicien.routes');
+const notificationRoutes = require('./routes/notification.routes');
 connectDB();
 
 const app = express();
@@ -28,6 +29,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/cultures', cultureRoutes);
 app.use('/api/advisor', advisorRoutes);
 
+
+// Utilisation
+app.use('/api/technicien', technicienRoutes);
+app.use('/api/notifications', notificationRoutes);
 // test route
 app.get('/', (req, res) => {
   res.json({

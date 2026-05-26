@@ -8,37 +8,32 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    # pubspec.yaml
-  google_maps_flutter: ^2.5.0        # Google Maps
-  geolocator: ^10.1.0               # Localisation GPS
-  geocoding: ^2.1.1                 # Convertir coordonnées en adresse
-  permission_handler: ^11.0.1       # Gérer les permissions
-
+  
+  # UI & Design
   font_awesome_flutter: ^10.7.0
-   # AJOUTER CES 2 PACKAGES POUR LA MÉTÉO
+  
+  # Maps & Location
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
   geolocator: ^10.1.0
   geocoding: ^2.1.1
   
-  # HTTP et API
-  http: ^1.1.0
+  # State Management & API
+  provider: ^6.1.1
+  http: ^1.6.0
   
-  # Stockage local
+  # Local Storage
   shared_preferences: ^2.2.2
   
-  # Notifications
-  fluttertoast: ^9.0.0
-  
-  # Sécurité
-  flutter_secure_storage: ^9.0.0
-  
-  # Formatage
-  intl: ^0.18.1
-  
-  # Gestion d'état
-  provider: ^6.1.1
-  
-  # Variables d'environnement (pour le token IPinfo)
+  # Environment Variables
   flutter_dotenv: ^5.1.0
+  
+  # Notifications
+  fluttertoast: ^8.2.4
+  
+  # Audio (synthèse vocale) - Commenté pour l'instant
+  # just_audio: ^0.10.5
+  # path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

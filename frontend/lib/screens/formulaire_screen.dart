@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/api_service.dart';
 import '../providers/location_provider.dart';
+import '../widgets/map_location_picker.dart';
 import 'resultat_screen.dart';
 
 class FormulaireScreen extends StatefulWidget {
@@ -15,7 +17,7 @@ class FormulaireScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _FormulaireScreenState createState() => _FormulaireScreenState();
+  State<FormulaireScreen> createState() => _FormulaireScreenState();
 }
 
 class _FormulaireScreenState extends State<FormulaireScreen>
@@ -31,6 +33,11 @@ class _FormulaireScreenState extends State<FormulaireScreen>
   String? _saison;
   bool _loading = false;
   bool _isLocationLoaded = false;
+  
+  // Variables pour la carte GPS
+  LatLng? _positionGPS;
+  String _adresseExacte = "";
+  String _zoneGPS = "";
 
   // Animations
   late AnimationController _animationController;
@@ -58,7 +65,6 @@ class _FormulaireScreenState extends State<FormulaireScreen>
   void initState() {
     super.initState();
     
-    // Animations
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -77,7 +83,6 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     _animationController.forward();
 
     _setDefaultValues();
-    _loadUserLocation();
   }
 
   void _setDefaultValues() {
@@ -93,31 +98,13 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     });
   }
 
-  void _loadUserLocation() {
-    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
-    
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        String detectedZone = locationProvider.currentZone;
-        String formattedZone = _getFormattedZone(detectedZone);
-        
-        if (formattedZone.isNotEmpty) {
-          _zone = formattedZone;
-          _isLocationLoaded = true;
-        }
-      });
-    });
-  }
-
-  String _getFormattedZone(String zone) {
-    switch (zone) {
-      case 'Nord': return 'Nord (Louga, Matam, Podor)';
-      case 'Centre': return 'Centre (Thiès, Diourbel, Kaolack)';
-      case 'Sud': return 'Sud (Ziguinchor, Sédhiou, Kolda)';
-      case 'Littoral': return 'Littoral (Dakar, Mbour, Saly)';
-      case 'Vallée': return 'Vallée du Fleuve (Saint-Louis, Dagana)';
-      default: return '';
-    }
+  String _getFormattedZoneFromGPS(String zone) {
+    if (zone.contains('Nord')) return 'Nord (Louga, Matam, Podor)';
+    if (zone.contains('Vallée')) return 'Vallée du Fleuve (Saint-Louis, Dagana)';
+    if (zone.contains('Littoral') || zone.contains('Niayes')) return 'Littoral (Dakar, Mbour, Saly)';
+    if (zone.contains('Centre')) return 'Centre (Thiès, Diourbel, Kaolack)';
+    if (zone.contains('Casamance') || zone.contains('Sud')) return 'Sud (Ziguinchor, Sédhiou, Kolda)';
+    return 'Centre (Thiès, Diourbel, Kaolack)';
   }
 
   Future<void> _submit() async {
@@ -145,19 +132,23 @@ class _FormulaireScreenState extends State<FormulaireScreen>
       );
 
       if (result['success'] == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ResultatScreen(result: result['data']),
-          ),
-        );
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ResultatScreen(result: result['data']),
+            ),
+          );
+        }
       } else {
         _showErrorSnackBar(result['message'] ?? 'Erreur inconnue');
       }
     } catch (e) {
       _showErrorSnackBar('Erreur: ${e.toString()}');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -270,19 +261,16 @@ class _FormulaireScreenState extends State<FormulaireScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header avec icône
                 _buildHeader(),
                 const SizedBox(height: 24),
                 
-                // Carte de localisation
-                _buildLocationCard(),
+                // Carte interactive
+                _buildMapCard(),
                 const SizedBox(height: 24),
                 
-                // Section paramètres environnementaux
                 _buildSectionTitle("🌡️ Conditions environnementales"),
                 const SizedBox(height: 16),
                 
-                // Sliders
                 _buildModernSlider(
                   label: "Température",
                   value: _temperature,
@@ -318,7 +306,6 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                 _buildSectionTitle("🌍 Paramètres du sol"),
                 const SizedBox(height: 16),
                 
-                // Dropdowns modernes
                 _buildModernDropdown(
                   label: "Type de sol",
                   value: _sol,
@@ -348,9 +335,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                 
                 const SizedBox(height: 32),
                 
-                // Bouton d'action
                 _buildSubmitButton(),
-                
                 const SizedBox(height: 20),
               ],
             ),
@@ -407,7 +392,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Remplissez les informations ci-dessous pour obtenir une analyse personnalisée",
+                  "Remplissez les informations ci-dessous",
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.8),
@@ -421,72 +406,89 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     );
   }
 
-  Widget _buildLocationCard() {
-    return Consumer<LocationProvider>(
-      builder: (context, locationProvider, child) {
-        return Container(
-          padding: const EdgeInsets.all(16),
+  // Carte avec sélection de position
+  Widget _buildMapCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
           decoration: BoxDecoration(
-            color: _isLocationLoaded ? Colors.green[50] : Colors.orange[50],
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _isLocationLoaded ? Colors.green[200]! : Colors.orange[200]!,
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _isLocationLoaded ? Colors.green[100] : Colors.orange[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _isLocationLoaded ? Icons.location_on : Icons.location_searching,
-                  color: _isLocationLoaded ? Colors.green[700] : Colors.orange[700],
-                  size: 24,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _isLocationLoaded ? "Zone détectée automatiquement" : "Détection en cours",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _isLocationLoaded ? Colors.green[700] : Colors.orange[700],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _isLocationLoaded 
-                        ? "📍 ${locationProvider.currentZone} - ${_zone ?? ''}"
-                        : "Recherche de votre position géographique...",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _isLocationLoaded ? Colors.green[600] : Colors.orange[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!_isLocationLoaded)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(Colors.orange[700]!),
-                  ),
-                ),
             ],
           ),
-        );
-      },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: MapLocationPicker(
+              onLocationSelected: (LatLng position, String adresse, String zone) {
+                setState(() {
+                  _positionGPS = position;
+                  _adresseExacte = adresse;
+                  _zoneGPS = zone;
+                  _isLocationLoaded = true;
+                  _zone = _getFormattedZoneFromGPS(zone);
+                });
+              },
+            ),
+          ),
+        ),
+        
+        if (_positionGPS != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green[200]!),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[100],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _adresseExacte,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green[800],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Zone: $_zoneGPS",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -676,15 +678,15 @@ class _FormulaireScreenState extends State<FormulaireScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildHelpItem("🗺️ Carte", "Cliquez sur la carte pour sélectionner votre position"),
+            const SizedBox(height: 12),
             _buildHelpItem("🌡️ Température", "Température moyenne journalière de votre région"),
             const SizedBox(height: 12),
-            _buildHelpItem("💧 Humidité", "Taux d'humidité dans l'air (moyenne journalière)"),
+            _buildHelpItem("💧 Humidité", "Taux d'humidité dans l'air"),
             const SizedBox(height: 12),
-            _buildHelpItem("🌍 Type de sol", "Nature dominante de votre sol (sableux, argileux, etc.)"),
+            _buildHelpItem("🌍 Type de sol", "Nature dominante de votre sol"),
             const SizedBox(height: 12),
             _buildHelpItem("📍 Zone", "Votre zone géographique au Sénégal"),
-            const SizedBox(height: 12),
-            _buildHelpItem("💦 Eau", "Quantité d'eau disponible pour l'irrigation (mm/semaine)"),
           ],
         ),
         actions: [
@@ -701,7 +703,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("• ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        const Text("• ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

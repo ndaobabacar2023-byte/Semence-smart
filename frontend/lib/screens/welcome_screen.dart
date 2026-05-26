@@ -1,8 +1,11 @@
+// lib/screens/welcome_screen.dart
 import 'package:flutter/material.dart';
-//import 'package:shared_preferences/shared_preferences.dart';
-import 'login_screen.dart';
+import '../theme.dart';
+import '../widgets/glass_container.dart';
+import 'type_culture_screen.dart';
+import 'technicien/technicien_dashboard.dart';
 import '../services/api_service.dart';
-import 'type_culture_screen.dart'; 
+
 
 class WelcomeScreen extends StatelessWidget {
   final String nom;
@@ -10,171 +13,164 @@ class WelcomeScreen extends StatelessWidget {
   final String role;
 
   const WelcomeScreen({
+    Key? key,
     required this.nom,
     required this.prenom,
     required this.role,
-    Key? key,
   }) : super(key: key);
-
-  String getRoleLabel(String role) {
-    switch (role.toLowerCase()) {
-      case 'agriculteur':
-        return 'Agriculteur';
-      case 'technicien':
-        return 'Technicien Agricole';
-      case 'admin':
-        return 'Administrateur';
-      default:
-        return role;
-    }
-  }
-
-  Color getRoleColor(String role) {
-    switch (role.toLowerCase()) {
-      case 'agriculteur':
-        return Colors.green;
-      case 'technicien':
-        return Colors.blue;
-      case 'admin':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Tableau de bord"),
-        backgroundColor: getRoleColor(role),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              // Confirmation avant déconnexion
-              bool confirm = await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Déconnexion"),
-                  content: const Text("Voulez-vous vraiment vous déconnecter ?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("Annuler"),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("Déconnecter"),
-                    ),
-                  ],
-                ),
-              ) ?? false;
+    final String fullName = "$prenom $nom";
+    final bool isTechnicien = role.toLowerCase() == 'technicien';
+    final bool isAdmin = role.toLowerCase() == 'admin';
 
-              if (confirm) {
-                await ApiService.logout();
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.verified_user,
-                size: 100,
-                color: getRoleColor(role),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "Bienvenue,",
-                style: const TextStyle(fontSize: 24),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "$prenom $nom",
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: getRoleColor(role),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Chip(
-                label: Text(
-                  getRoleLabel(role),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                backgroundColor: getRoleColor(role),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => TypeCultureScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: getRoleColor(role),
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                ),
-                child: const Text(
-                  "Commencer l'analyse",
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () async {
-                  final token = await ApiService.getToken();
-                  final userRole = await ApiService.getRole();
-                  
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text("Informations de session"),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Rôle: ${getRoleLabel(userRole ?? role)}"),
-                          const SizedBox(height: 10),
-                          Text("Token: ${token != null ? '✓ Présent' : '✗ Absent'}"),
-                          if (token != null) ...[
-                            const SizedBox(height: 5),
-                            Text(
-                              "${token.substring(0, 30)}...",
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ],
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("OK"),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                child: const Text("Voir informations de session"),
-              ),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1B5E20),
+              Color(0xFF2E7D32),
+              Color(0xFF4CAF50),
             ],
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: GlassContainer(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.agriculture,
+                    size: 80,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Bienvenue !",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    fullName,
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isTechnicien ? "Technicien Agricole" : "Agriculteur",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  
+                  // Bouton selon le rôle
+                  if (isTechnicien)
+                    _buildButton(
+                      context: context,
+                      text: "📊 Tableau de bord Technicien",
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TechnicienDashboard(),
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    _buildButton(
+                      context: context,
+                      text: "🌱 Commencer mon analyse",
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TypeCultureScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  
+                  const SizedBox(height: 15),
+                  
+                  _buildButton(
+                    context: context,
+                    text: "🔓 Se déconnecter",
+                    onPressed: () async {
+                      await ApiService.logout();
+                      if (context.mounted) {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
+                    },
+                    isOutlined: true,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildButton({
+    required BuildContext context,
+    required String text,
+    required VoidCallback onPressed,
+    bool isOutlined = false,
+  }) {
+    if (isOutlined) {
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white),
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(text),
+      );
+    }
+    
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
 }
+
+// Import nécessaire
+

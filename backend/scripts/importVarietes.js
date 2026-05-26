@@ -1,278 +1,230 @@
 /**
- * Script d'import des variétés de semences depuis un fichier CSV
- * Usage: node scripts/importVarietes.js
+ * Script d'import final - Version qui fonctionne
+ * Usage: node scripts/importVarietesFinal.js
  */
 
 const fs = require('fs');
 const path = require('path');
-const csv = require('csv-parser');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-// Configuration
-const CSV_PATH = path.join(__dirname, '../data/semences.csv');
+const CSV_PATH = path.join(__dirname, '../data/semences_senegal_fixed.csv');
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/agriadvisor';
 
-// Importer le modèle
 const Culture = require('../models/Culture');
 
-// Mapping des cultures vers leurs configurations par défaut
-const CULTURE_CONFIG = {
-  Mil: {
-    types: ['plein_air'],
-    temp_min: 25,
-    temp_max: 35,
-    humidite_min: 40,
-    humidite_max: 70,
-    sols_recommandes: ['sableux', 'limoneux'],
-    besoin_eau: 'faible',
-    saison_optimale: 'juin-septembre',
-    zone_adaptation: ['Nord', 'Centre', 'Vallée'],
-    difficulte: 'facile',
-    marche_local: 'forte demande',
-    recommandations_generales: [
-      'Semer en ligne avec un écartement de 80x40 cm',
-      'Apporter du NPK 15-15-15 à 100 kg/ha au semis',
-      'Sarcler régulièrement les 30 premiers jours'
-    ]
-  },
-  Arachide: {
-    types: ['plein_air'],
-    temp_min: 24,
-    temp_max: 30,
-    humidite_min: 50,
-    humidite_max: 75,
-    sols_recommandes: ['sableux', 'limoneux'],
-    besoin_eau: 'moyen',
-    saison_optimale: 'juin-septembre',
-    zone_adaptation: ['Centre', 'Sud', 'Littoral'],
-    difficulte: 'facile',
-    marche_local: 'forte demande',
-    recommandations_generales: [
-      'Traiter les semences avec un fongicide avant semis',
-      'Rotation culturale de 3 ans minimum',
-      'Apporter du 6-20-10 à 150 kg/ha'
-    ]
-  },
-  Tomate: {
-    types: ['serre', 'plein_air'],
-    temp_min: 20,
-    temp_max: 28,
-    humidite_min: 60,
-    humidite_max: 80,
-    sols_recommandes: ['limoneux', 'argileux'],
-    besoin_eau: 'élevé',
-    saison_optimale: 'octobre-mai',
-    zone_adaptation: ['Littoral', 'Centre', 'Sud'],
-    difficulte: 'moyen',
-    marche_local: 'forte demande',
-    recommandations_generales: [
-      'Tuteurer les plants dès la plantation',
-      'Traiter préventivement contre le mildiou tous les 10-15 jours',
-      'Pailler pour maintenir l\'humidité'
-    ]
-  },
-  Poivron: {
-    types: ['serre', 'plein_air'],
-    temp_min: 18,
-    temp_max: 27,
-    humidite_min: 65,
-    humidite_max: 85,
-    sols_recommandes: ['limoneux', 'argileux'],
-    besoin_eau: 'élevé',
-    saison_optimale: 'octobre-mai',
-    zone_adaptation: ['Littoral', 'Centre'],
-    difficulte: 'moyen',
-    marche_local: 'demande moyenne',
-    recommandations_generales: [
-      'Espacement de 50x40 cm',
-      'Apporter du compost à la plantation',
-      'Surveiller les pucerons régulièrement'
-    ]
-  },
-  Laitue: {
-    types: ['serre', 'plein_air'],
-    temp_min: 15,
-    temp_max: 24,
-    humidite_min: 60,
-    humidite_max: 80,
-    sols_recommandes: ['limoneux', 'sableux'],
-    besoin_eau: 'élevé',
-    saison_optimale: 'octobre-mai',
-    zone_adaptation: ['Littoral', 'Centre'],
-    difficulte: 'facile',
-    marche_local: 'forte demande',
-    recommandations_generales: [
-      'Semis en pépinière puis repiquage à 30x30 cm',
-      'Arroser régulièrement sans excès',
-      'Récolter tôt le matin pour meilleure conservation'
-    ]
-  }
+// Mapping des zones
+function getZone(zoneFavorable) {
+  const zones = [];
+  const z = (zoneFavorable || '').toLowerCase();
+  if (z.includes('niayes') || z.includes('dakar') || z.includes('thiès') || z.includes('littoral')) zones.push('Littoral');
+  if (z.includes('vallée') || z.includes('fleuve')) zones.push('Vallée');
+  if (z.includes('sud') || z.includes('ziguinchor') || z.includes('kolda') || z.includes('casamance')) zones.push('Sud');
+  if (z.includes('bassin') || z.includes('kaolack') || z.includes('diourbel')) zones.push('Centre');
+  if (z.includes('nord') || z.includes('sahel')) zones.push('Nord');
+  return zones.length ? zones : ['Toutes zones'];
+}
+
+function getSaison(saisonStr) {
+  const s = (saisonStr || '').toLowerCase();
+  if (s.includes('sèche')) return 'saison sèche';
+  if (s.includes('hivernage') || s.includes('pluie')) return 'hivernage';
+  return 'saison sèche';
+}
+
+function getSols(solStr) {
+  const sols = [];
+  const s = (solStr || '').toLowerCase();
+  if (s.includes('sable')) sols.push('sableux');
+  if (s.includes('limon')) sols.push('limoneux');
+  if (s.includes('argile')) sols.push('argileux');
+  return sols.length ? sols : ['limoneux'];
+}
+
+const cultureConfig = {
+  tomate: { temp_min: 20, temp_max: 30, humidite_min: 55, humidite_max: 80, besoin_eau: 'élevé' },
+  poivron: { temp_min: 18, temp_max: 30, humidite_min: 60, humidite_max: 80, besoin_eau: 'élevé' },
+  piment: { temp_min: 20, temp_max: 35, humidite_min: 50, humidite_max: 80, besoin_eau: 'moyen' },
+  laitue: { temp_min: 15, temp_max: 24, humidite_min: 60, humidite_max: 80, besoin_eau: 'élevé' },
+  chou: { temp_min: 15, temp_max: 22, humidite_min: 60, humidite_max: 85, besoin_eau: 'élevé' },
+  carotte: { temp_min: 15, temp_max: 25, humidite_min: 50, humidite_max: 80, besoin_eau: 'moyen' },
+  aubergine: { temp_min: 20, temp_max: 35, humidite_min: 50, humidite_max: 80, besoin_eau: 'moyen' },
+  oignon: { temp_min: 15, temp_max: 30, humidite_min: 40, humidite_max: 70, besoin_eau: 'moyen' },
+  pomme_de_terre: { temp_min: 15, temp_max: 22, humidite_min: 60, humidite_max: 80, besoin_eau: 'élevé' },
+  gombo: { temp_min: 25, temp_max: 35, humidite_min: 60, humidite_max: 80, besoin_eau: 'moyen' },
+  haricot_vert: { temp_min: 18, temp_max: 32, humidite_min: 50, humidite_max: 80, besoin_eau: 'moyen' },
+  niebe: { temp_min: 25, temp_max: 40, humidite_min: 30, humidite_max: 70, besoin_eau: 'faible' },
+  mais: { temp_min: 20, temp_max: 35, humidite_min: 40, humidite_max: 80, besoin_eau: 'moyen' },
+  riz: { temp_min: 25, temp_max: 38, humidite_min: 60, humidite_max: 90, besoin_eau: 'élevé' },
+  sorgho: { temp_min: 25, temp_max: 40, humidite_min: 30, humidite_max: 70, besoin_eau: 'faible' },
+  mil: { temp_min: 25, temp_max: 35, humidite_min: 40, humidite_max: 70, besoin_eau: 'faible' },
+  arachide: { temp_min: 24, temp_max: 35, humidite_min: 40, humidite_max: 70, besoin_eau: 'moyen' }
 };
 
-/**
- * Convertit une valeur "Oui/Non" en booléen
- */
-function toBoolean(value) {
-  return value === 'Oui' || value === 'true' || value === 'TRUE' || value === '1';
-}
-
-/**
- * Normalise le nom de la zone
- */
-function normalizeZone(zone) {
-  const zoneMap = {
-    'Nord': 'Nord',
-    'Vallee du Fleuve': 'Vallée',
-    'Vallée du Fleuve': 'Vallée',
-    'Centre': 'Centre',
-    'Sud': 'Sud',
-    'Littoral': 'Littoral'
-  };
-  return zoneMap[zone] || zone;
-}
-
-/**
- * Fonction principale d'import
- */
-async function importVarieties() {
-  console.log('🚀 Démarrage de l\'import des variétés...\n');
+async function importData() {
+  console.log('🚀 Démarrage de l\'import...\n');
 
   try {
-    // 1. Connexion à MongoDB
-    console.log('📦 Connexion à MongoDB...');
     await mongoose.connect(MONGO_URI);
-    console.log('✅ Connecté avec succès\n');
+    console.log('✅ Connecté à MongoDB\n');
 
-    // 2. Lecture du fichier CSV
-    console.log(`📂 Lecture du fichier: ${CSV_PATH}`);
-    const varieties = [];
-
-    await new Promise((resolve, reject) => {
-      fs.createReadStream(CSV_PATH)
-        .pipe(csv())
-        .on('data', (row) => {
-          // Convertir les zones en tableau
-          const zones = row.zone_adaptation
-            .split(',')
-            .map(z => normalizeZone(z.trim()))
-            .filter(z => z);
-
-          // Créer l'objet variété selon le schéma
-          const variete = {
-            nom: row.nom_variete,
-            description: row.description || `Variété de ${row.culture}`,
-            temp_min: parseFloat(row.temperature_min),
-            temp_max: parseFloat(row.temperature_max),
-            cycle_vegetatif: parseInt(row.cycle_jours),
-            resistance_secheresse: toBoolean(row.resistance_secheresse),
-            eau_min: row.besoin_eau === 'Faible' ? 10 : (row.besoin_eau === 'Moyen' ? 30 : 50),
-            eau_max: row.besoin_eau === 'Faible' ? 30 : (row.besoin_eau === 'Moyen' ? 60 : 80),
-            saison_recommandee: row.culture === 'Mil' || row.culture === 'Arachide' ? 'hivernage' : 'saison sèche',
-            prix_semence: parseInt(row.prix_kg_fcfa) || null,
-            sols_recommandes: CULTURE_CONFIG[row.culture]?.sols_recommandes || ['sableux', 'limoneux']
-          };
-
-          varieties.push({
-            culture: row.culture,
-            zones: zones,
-            variete: variete
-          });
-        })
-        .on('end', resolve)
-        .on('error', reject);
-    });
-
-    console.log(`📊 ${varieties.length} variétés trouvées dans le CSV\n`);
-
-    // 3. Grouper par culture
-    const cultureMap = new Map();
-    for (const item of varieties) {
-      if (!cultureMap.has(item.culture)) {
-        cultureMap.set(item.culture, []);
-      }
-      cultureMap.get(item.culture).push(item);
+    if (!fs.existsSync(CSV_PATH)) {
+      console.error(`❌ Fichier non trouvé: ${CSV_PATH}`);
+      console.log('\n💡 Exécutez d\'abord: node scripts/fixCsvFormat.js');
+      return;
     }
 
-    console.log(`🎯 ${cultureMap.size} cultures à traiter\n`);
+    const content = fs.readFileSync(CSV_PATH, 'utf8');
+    const lines = content.split('\n').filter(l => l.trim());
+    
+    console.log(`📊 ${lines.length} lignes trouvées\n`);
+    
+    const headers = lines[0].split(',');
+    console.log('📋 En-têtes:', headers);
+    console.log('');
+    
+    let totalVarietes = 0;
+    let culturesModifiees = 0;
+    let erreurs = 0;
 
-    // 4. Importer/Mettre à jour chaque culture
-    for (const [cultureName, items] of cultureMap) {
-      console.log(`📝 Traitement de: ${cultureName}`);
-
-      const config = CULTURE_CONFIG[cultureName];
-      if (!config) {
-        console.warn(`⚠️  Configuration manquante pour ${cultureName}, création avec valeurs par défaut\n`);
-      }
-
-      const varietes = items.map(item => item.variete);
-
-      // Vérifier si la culture existe déjà
-      let culture = await Culture.findOne({ nom: cultureName });
-
-      if (culture) {
-        // Mise à jour : ajouter les nouvelles variétés sans dupliquer
-        for (const nouvelleVariete of varietes) {
-          const existe = culture.varietes.some(v => v.nom === nouvelleVariete.nom);
-          if (!existe) {
-            culture.varietes.push(nouvelleVariete);
+    for (let idx = 1; idx < lines.length; idx++) {
+      const line = lines[idx];
+      if (!line.trim()) continue;
+      
+      try {
+        // Parser la ligne
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
           }
         }
-        await culture.save();
-        console.log(`   ✅ Mise à jour: ${culture.varietes.length} variétés`);
-      } else {
-        // Création d'une nouvelle culture
-        culture = new Culture({
-          nom: cultureName,
-          nom_local: cultureName,
-          types: config.types,
-          temp_min: config.temp_min,
-          temp_max: config.temp_max,
-          humidite_min: config.humidite_min,
-          humidite_max: config.humidite_max,
-          sols_recommandes: config.sols_recommandes,
-          besoin_eau: config.besoin_eau,
-          saison_optimale: config.saison_optimale,
-          zone_adaptation: config.zone_adaptation,
-          difficulte: config.difficulte,
-          marche_local: config.marche_local,
-          recommandations_generales: config.recommandations_generales,
-          varietes: varietes
+        values.push(current.trim());
+        
+        if (values.length < 10) {
+          console.log(`⚠️ Ligne ${idx + 1}: ${values.length} colonnes ignorée`);
+          continue;
+        }
+        
+        const cultureNom = values[0].toLowerCase();
+        const varieteNom = values[1];
+        const typeCulture = values[2] || '';
+        const modeCulture = values[3] && values[3].toLowerCase().includes('serre') ? 'serre' : 'plein_air';
+        const tempMin = parseInt(values[4]) || 20;
+        const tempMax = parseInt(values[5]) || 30;
+        const humMin = parseInt(values[6]) || 50;
+        const humMax = parseInt(values[7]) || 80;
+        const typeSol = values[8] || '';
+        const saisonStr = values[9] || '';
+        const zoneFavorable = values[10] || '';
+        const rendement = values[11] ? parseInt(values[11]) : null;
+        const cycleJours = values[12] ? parseInt(values[12]) : null;
+        const resistanceChaleur = values[13] ? parseInt(values[13]) : 5;
+        const resistanceSecheresse = values[14] ? parseInt(values[14]) : 5;
+        const prix = values[15] ? parseInt(values[15]) : null;
+        
+        if (!varieteNom || varieteNom === '') {
+          console.log(`⚠️ Ligne ${idx + 1}: Variété sans nom`);
+          continue;
+        }
+        
+        console.log(`📝 ${idx + 1}/${lines.length - 1}: ${cultureNom} - ${varieteNom} (${modeCulture})`);
+        
+        let culture = await Culture.findOne({
+          nom: { $regex: new RegExp(`^${cultureNom}$`, 'i') },
+          types: modeCulture
         });
+        
+        const config = cultureConfig[cultureNom] || { temp_min: 20, temp_max: 30, humidite_min: 50, humidite_max: 80, besoin_eau: 'moyen' };
+        
+        if (!culture) {
+          culture = new Culture({
+            nom: cultureNom,
+            nom_local: cultureNom,
+            types: [modeCulture],
+            temp_min: config.temp_min,
+            temp_max: config.temp_max,
+            humidite_min: config.humidite_min,
+            humidite_max: config.humidite_max,
+            sols_recommandes: getSols(typeSol),
+            besoin_eau: config.besoin_eau,
+            saison_optimale: 'octobre-mai',
+            zone_adaptation: getZone(zoneFavorable),
+            difficulte: 'moyen',
+            marche_local: 'demande moyenne',
+            varietes: []
+          });
+          culturesModifiees++;
+        }
+        
+        const varieteExiste = culture.varietes.some(v => 
+          v.nom && v.nom.toLowerCase() === varieteNom.toLowerCase()
+        );
+        
+        if (varieteExiste) {
+          console.log(`   ⏭️  Déjà existante`);
+          continue;
+        }
+        
+        const variete = {
+          nom: varieteNom,
+          description: typeCulture || `Variété de ${cultureNom}`,
+          temp_min: tempMin,
+          temp_max: tempMax,
+          humidite_min: humMin,
+          humidite_max: humMax,
+          sols_recommandes: getSols(typeSol),
+          resistance_secheresse: resistanceSecheresse >= 7,
+          resistance_chaleur: resistanceChaleur,
+          saison_recommandee: getSaison(saisonStr),
+          zone_adaptation: getZone(zoneFavorable)
+        };
+        
+        if (rendement) variete.rendement_moyen = rendement / 1000;
+        if (prix) variete.prix_semence = prix;
+        if (cycleJours) variete.cycle_vegetatif = cycleJours;
+        
+        culture.varietes.push(variete);
         await culture.save();
-        console.log(`   ✅ Création: ${varietes.length} variétés`);
+        
+        totalVarietes++;
+        console.log(`   ✅ Ajouté (total culture: ${culture.varietes.length})`);
+        
+      } catch (err) {
+        console.error(`❌ Erreur ligne ${idx + 1}:`, err.message);
+        erreurs++;
       }
     }
-
-    // 5. Résumé final
+    
     console.log('\n' + '='.repeat(50));
     console.log('📊 RÉSUMÉ FINAL');
     console.log('='.repeat(50));
-
-    const allCultures = await Culture.find();
-    for (const culture of allCultures) {
-      console.log(`\n🌾 ${culture.nom} (${culture.types.join(', ')})`);
-      console.log(`   📍 Zones: ${culture.zone_adaptation?.join(', ') || 'Toutes'}`);
-      console.log(`   🌡️  Température: ${culture.temp_min}°C - ${culture.temp_max}°C`);
-      console.log(`   💧 Besoin eau: ${culture.besoin_eau}`);
-      console.log(`   🌱 Variétés: ${culture.varietes.length}`);
-      for (const v of culture.varietes) {
-        console.log(`      - ${v.nom} (${v.cycle_vegetatif} jours) - ${v.prix_semence ? v.prix_semence + ' FCFA/kg' : 'Prix non spécifié'}`);
-      }
+    console.log(`\n✅ Cultures créées/modifiées: ${culturesModifiees}`);
+    console.log(`✅ Variétés ajoutées: ${totalVarietes}`);
+    console.log(`❌ Erreurs: ${erreurs}`);
+    
+    const allCultures = await Culture.find().sort({ nom: 1 });
+    console.log(`\n🌾 État final de la base (${allCultures.length} cultures):`);
+    for (const c of allCultures) {
+      console.log(`   - ${c.nom} (${c.types.join(', ')}) : ${c.varietes.length} variétés`);
     }
-
-    console.log('\n' + '='.repeat(50));
-    console.log('✅ Import terminé avec succès !');
-    console.log('='.repeat(50));
-
-  } catch (error) {
-    console.error('\n❌ ERREUR:', error.message);
-    console.error(error.stack);
-  } finally {
+    
     await mongoose.disconnect();
-    console.log('\n🔌 Déconnecté de MongoDB');
+    console.log('\n🔌 Déconnecté');
+    
+  } catch (error) {
+    console.error('❌ Erreur:', error.message);
+    await mongoose.disconnect();
   }
 }
 
-// Exécution du script
-importVarieties();
+importData();

@@ -16,34 +16,40 @@ const VarieteSchema = new mongoose.Schema({
     type: Number, 
     min: 10,
     max: 40
-  }, // °C
+  },
   temp_max: { 
     type: Number, 
     min: 15,
     max: 45
-  }, // °C
+  },
   humidite_min: { 
     type: Number, 
     min: 20,
     max: 90
-  }, // %
+  },
   humidite_max: { 
     type: Number, 
     min: 30,
     max: 95
-  }, // %
+  },
   sols_recommandes: [{ 
     type: String,
-    enum: ['sableux', 'limoneux', 'argileux', 'lateritique', 'tourbeux']
+    enum: ['sableux', 'limoneux', 'argileux', 'lateritique', 'tourbeux', 'sablo-argileux', 'sablo-limoneux', 'limono-sableux']
   }],
   cycle_vegetatif: { 
     type: Number, 
     min: 30,
-    max: 180
-  }, // en jours
+    max: 365
+  },
   resistance_secheresse: { 
     type: Boolean, 
     default: false 
+  },
+  resistance_chaleur: {
+    type: Number,
+    min: 1,
+    max: 10,
+    default: 5
   },
   tolerance_maladies: [{ 
     type: String 
@@ -52,12 +58,12 @@ const VarieteSchema = new mongoose.Schema({
     type: Number, 
     min: 0,
     default: 10
-  }, // mm/semaine
+  },
   eau_max: { 
     type: Number, 
     min: 0,
     default: 60
-  }, // mm/semaine
+  },
   saison_recommandee: { 
     type: String,
     enum: ['hivernage', 'saison sèche', 'contre-saison', 'toute l\'année']
@@ -71,7 +77,11 @@ const VarieteSchema = new mongoose.Schema({
     type: Number,
     min: 0,
     comment: 'Prix approximatif du kg de semence en FCFA'
-  }
+  },
+  zone_adaptation: [{
+    type: String,
+    enum: ['Nord', 'Centre', 'Sud', 'Vallée', 'Littoral', 'Toutes zones']
+  }]
 }, {
   timestamps: true
 });
@@ -98,25 +108,25 @@ const CultureSchema = new mongoose.Schema({
     min: 10,
     max: 40,
     default: 20
-  }, // °C
+  },
   temp_max: { 
     type: Number, 
     min: 15,
     max: 45,
     default: 30
-  }, // °C
+  },
   humidite_min: { 
     type: Number, 
     min: 20,
     max: 90,
     default: 50
-  }, // %
+  },
   humidite_max: { 
     type: Number, 
     min: 30,
     max: 95,
     default: 80
-  }, // %
+  },
   sols_recommandes: [{ 
     type: String,
     enum: ['sableux', 'limoneux', 'argileux', 'lateritique', 'tourbeux']
@@ -153,6 +163,10 @@ const CultureSchema = new mongoose.Schema({
     enum: ['forte demande', 'demande moyenne', 'niche'],
     default: 'demande moyenne'
   },
+  image_url: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -169,8 +183,15 @@ CultureSchema.index({ saison_optimale: 1 });
 // Méthode pour obtenir les variétés recommandées par zone
 CultureSchema.methods.getVarietesByZone = function(zone) {
   return this.varietes.filter(variete => {
-    // Logique de filtrage par zone (à adapter)
-    return true; // Pour l'instant, retourne toutes les variétés
+    if (!variete.zone_adaptation || variete.zone_adaptation.length === 0) return true;
+    return variete.zone_adaptation.includes(zone) || variete.zone_adaptation.includes('Toutes zones');
+  });
+};
+
+// Méthode pour obtenir les variétés par prix
+CultureSchema.methods.getVarietesByPrix = function(prixMax) {
+  return this.varietes.filter(variete => {
+    return !variete.prix_semence || variete.prix_semence <= prixMax;
   });
 };
 
