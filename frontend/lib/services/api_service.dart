@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = "http://localhost:3000/api";
-
+static const String baseUrl =
+"https://semence-smart-backend.onrender.com/api";
 // ===== ANALYSE CONDITIONS =====
 static Future<Map<String, dynamic>> analyseConditions({
   required String culture,
