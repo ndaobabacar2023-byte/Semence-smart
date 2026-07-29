@@ -12,7 +12,8 @@ try {
   console.log("DEBUG FIREBASE_PRIVATE_KEY present:", !!privateKey);
   console.log("DEBUG FIREBASE_PRIVATE_KEY length:", privateKey ? privateKey.length : 0);
   console.log("DEBUG FIREBASE_PRIVATE_KEY starts with:", privateKey ? privateKey.substring(0, 30) : "N/A");
-
+  console.log(admin);
+  console.log(admin.credential);
   if (projectId && clientEmail && privateKey) {
     admin.initializeApp({
       credential: admin.credential.cert({
