@@ -1,25 +1,33 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-const Notification = require('../models/Notification');
-const { auth } = require('../middleware/auth.middleware');
+const notificationController =
+require("../controllers/notification.controller");
 
-router.get('/', auth, async (req, res) => {
-  try {
-    const notifications = await Notification.find({
-     userId: req.user?.id || req.user?._id
-    }).sort({ createdAt: -1 });
+const { auth } =
+require("../middleware/auth.middleware");
 
-    res.json({
-      success: true,
-      data: notifications
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
+router.post(
+    "/register-token",
+    notificationController.saveToken
+);
+
+router.get(
+    "/",
+    auth,
+    notificationController.getNotifications
+);
+
+router.put(
+    "/:id/read",
+    auth,
+    notificationController.markAsRead
+);
+
+router.get(
+    "/unread-count",
+    auth,
+    notificationController.getUnreadCount
+);
 
 module.exports = router;

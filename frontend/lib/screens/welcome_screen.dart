@@ -1,11 +1,10 @@
 // lib/screens/welcome_screen.dart
-import 'package:flutter/material.dart';
-import '../theme.dart';
-import '../widgets/glass_container.dart';
-import 'type_culture_screen.dart';
-import 'technicien/technicien_dashboard.dart';
-import '../services/api_service.dart';
 
+import 'package:flutter/material.dart';
+import 'technicien/technicien_dashboard.dart';
+import 'dashboard_agriculteur.dart';
+import 'admin_home_screen.dart';
+import '../widgets/semence_logo.dart';
 
 class WelcomeScreen extends StatelessWidget {
   final String nom;
@@ -19,158 +18,149 @@ class WelcomeScreen extends StatelessWidget {
     required this.role,
   }) : super(key: key);
 
+  static const Color primaryGreen = Color(0xFF2E7D32);
+
   @override
   Widget build(BuildContext context) {
-    final String fullName = "$prenom $nom";
-    final bool isTechnicien = role.toLowerCase() == 'technicien';
-    final bool isAdmin = role.toLowerCase() == 'admin';
+    final String roleNormalized = role.trim().toLowerCase();
+    final bool isTechnicien = roleNormalized == 'technicien';
+    final bool isAdmin = roleNormalized == 'admin';
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1B5E20),
-              Color(0xFF2E7D32),
-              Color(0xFF4CAF50),
-            ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Photo de fond ──────────────────────────────
+          Image.asset(
+            'assets/images/mil.jpg',
+            fit: BoxFit.cover,
           ),
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: GlassContainer(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.agriculture,
-                    size: 80,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Bienvenue !",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    fullName,
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      isTechnicien ? "Technicien Agricole" : "Agriculteur",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  
-                  // Bouton selon le rôle
-                  if (isTechnicien)
-                    _buildButton(
-                      context: context,
-                      text: "📊 Tableau de bord Technicien",
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TechnicienDashboard(),
-                          ),
-                        );
-                      },
-                    )
-                  else
-                    _buildButton(
-                      context: context,
-                      text: "🌱 Commencer mon analyse",
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TypeCultureScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  
-                  const SizedBox(height: 15),
-                  
-                  _buildButton(
-                    context: context,
-                    text: "🔓 Se déconnecter",
-                    onPressed: () async {
-                      await ApiService.logout();
-                      if (context.mounted) {
-                        Navigator.pushReplacementNamed(context, '/login');
-                      }
-                    },
-                    isOutlined: true,
-                  ),
+
+          // ── Voile vert/noir pour la lisibilité du texte ─
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  primaryGreen.withOpacity(0.6),
+                  Colors.black.withOpacity(0.65),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildButton({
-    required BuildContext context,
-    required String text,
-    required VoidCallback onPressed,
-    bool isOutlined = false,
-  }) {
-    if (isOutlined) {
-      return OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.white),
-          minimumSize: const Size(double.infinity, 50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          // ── Contenu ─────────────────────────────────────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  const Spacer(flex: 3),
+
+                  // Logo circulaire
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.15),
+                    ),
+                    child: const SemenceLogo(size: 84),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  const Text(
+                    "Bienvenue sur",
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "SEMENCE SMART",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  const Text(
+                    "Application intelligente de recommandation\nde variétés de semences",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13.5,
+                      height: 1.4,
+                    ),
+                  ),
+
+                  const Spacer(flex: 4),
+
+                  // Bouton unique "Commencer" — navigue selon le rôle
+                  SizedBox(
+                    width: 220,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (isAdmin) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => AdminHomeScreen()),
+                          );
+                        } else if (isTechnicien) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TechnicienDashboard(),
+                            ),
+                          );
+                        } else {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DashboardAgriculteur(
+                                nom: nom,
+                                prenom: prenom,
+                                role: role,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.15),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          side: BorderSide(color: Colors.white.withOpacity(0.4)),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Commencer",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward_rounded, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(flex: 2),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: Text(text),
-      );
-    }
-    
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(color: Colors.white),
+        ],
       ),
     );
   }
 }
-
-// Import nécessaire
-

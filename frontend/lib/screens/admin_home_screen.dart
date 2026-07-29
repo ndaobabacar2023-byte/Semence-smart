@@ -1,5 +1,8 @@
+// le tableau de bord admin
 import 'package:flutter/material.dart';
-
+import 'admin_users_screen.dart';
+import 'admin_stats_screen.dart';
+import 'admin_settings_screen.dart';
 class AdminHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -65,7 +68,12 @@ class AdminHomeScreen extends StatelessWidget {
                     // 🔥 Bouton 1
                     ElevatedButton.icon(
                       onPressed: () {
-                        // TODO: gérer utilisateurs
+                        Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminUsersScreen(),
+                        ),
+                      );
                       },
                       icon: Icon(Icons.people),
                       label: Text("Gérer les utilisateurs"),
@@ -81,7 +89,12 @@ class AdminHomeScreen extends StatelessWidget {
                     // 🔥 Bouton 2
                     ElevatedButton.icon(
                       onPressed: () {
-                        // TODO: voir statistiques
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminStatsScreen(),
+                          ),
+                        );
                       },
                       icon: Icon(Icons.bar_chart),
                       label: Text("Voir les statistiques"),
@@ -97,7 +110,12 @@ class AdminHomeScreen extends StatelessWidget {
                     // 🔥 Bouton 3
                     ElevatedButton.icon(
                       onPressed: () {
-                        // TODO: paramètres
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminSettingsScreen(),
+                          ),
+                        );// TODO: paramètres
                       },
                       icon: Icon(Icons.settings),
                       label: Text("Paramètres"),

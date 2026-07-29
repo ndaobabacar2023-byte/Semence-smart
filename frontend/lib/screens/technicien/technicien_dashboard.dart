@@ -1,12 +1,13 @@
+// lib/screens/technicien/technicien_dashboard.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../providers/technicien_provider.dart';
 import '../../services/api_service.dart';
 import 'analyses_list_screen.dart';
 import 'ajouter_variete_screen.dart';
-
+import 'selection_agriculteur_screen.dart';
 class TechnicienDashboard extends StatefulWidget {
   const TechnicienDashboard({Key? key}) : super(key: key);
 
@@ -21,6 +22,8 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
   String _userEmail = "";
   String _userPhone = "";
 
+  static const Color primaryGreen = Color(0xFF2E7D32);
+
   @override
   void initState() {
     super.initState();
@@ -28,9 +31,7 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
     _loadUserInfo();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final provider =
-          Provider.of<TechnicienProvider>(context, listen: false);
-
+      final provider = Provider.of<TechnicienProvider>(context, listen: false);
       await provider.refreshAll();
     });
   }
@@ -48,8 +49,7 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
       if (!mounted) return;
 
       setState(() {
-        _userName =
-            "$prenom $nom".trim().isEmpty ? "Technicien" : "$prenom $nom".trim();
+        _userName = "$prenom $nom".trim().isEmpty ? "Technicien" : "$prenom $nom".trim();
         _userEmail = prefs.getString('email') ?? "";
         _userPhone = prefs.getString('telephone') ?? "";
       });
@@ -63,7 +63,7 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
   // =========================
   List<Widget> _screens() {
     return [
-      const _DashboardHomeScreen(),
+      _DashboardHomeScreen(userName: _userName),
       const AnalysesListScreen(),
       const AjouterVarieteScreen(),
       _ProfilScreen(
@@ -74,12 +74,18 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
     ];
   }
 
+  static const List<String> _titles = [
+    'Tableau de bord',
+    'Analyses',
+    'Nouvelle variété',
+    'Mon profil',
+  ];
+
   // =========================
   // 🔄 REFRESH
   // =========================
   Future<void> _refreshData() async {
-    final provider =
-        Provider.of<TechnicienProvider>(context, listen: false);
+    final provider = Provider.of<TechnicienProvider>(context, listen: false);
 
     await provider.refreshAll();
     await _loadUserInfo();
@@ -101,29 +107,26 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
     final screens = _screens();
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF4F7F5),
 
       // =========================
       // APPBAR
       // =========================
       appBar: AppBar(
-        backgroundColor: Colors.green[700],
+        backgroundColor: primaryGreen,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Espace Technicien',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+        title: Text(
+          _titles[_currentIndex],
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 19),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: _refreshData,
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
             onPressed: _logout,
           ),
         ],
@@ -132,48 +135,62 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
       // =========================
       // BODY
       // =========================
-      body: SafeArea(
-        child: screens[_currentIndex],
-      ),
+      body: SafeArea(child: screens[_currentIndex]),
+
+      // =========================
+      // FAB — Nouvelle analyse pour un agriculteur (rôle technicien)
+      // =========================
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
+              backgroundColor: primaryGreen,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SelectionAgriculteurScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text("Nouvelle analyse", style: TextStyle(color: Colors.white)),
+            )
+          : null,
 
       // =========================
       // NAVIGATION
       // =========================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        type: BottomNavigationBarType.fixed,
-
-        selectedItemColor: Colors.green[700],
-        unselectedItemColor: Colors.grey[600],
-
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.bold,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, -3),
+            ),
+          ],
         ),
-
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analyses',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle),
-            label: 'Variétés',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          selectedItemColor: primaryGreen,
+          unselectedItemColor: Colors.grey[500],
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+          unselectedLabelStyle: const TextStyle(fontSize: 11.5),
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Accueil'),
+            BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Analyses'),
+            BottomNavigationBarItem(icon: Icon(Icons.add_circle_rounded), label: 'Variétés'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profil'),
+          ],
+        ),
       ),
     );
   }
@@ -182,8 +199,15 @@ class _TechnicienDashboardState extends State<TechnicienDashboard> {
 // ======================================================
 // 🏠 HOME DASHBOARD
 // ======================================================
+// 🏠 HOME DASHBOARD
+// ======================================================
 class _DashboardHomeScreen extends StatelessWidget {
-  const _DashboardHomeScreen();
+  final String userName;
+
+  const _DashboardHomeScreen({required this.userName});
+
+  static const Color primaryGreen = Color(0xFF2E7D32);
+  static const Color accentGreen = Color(0xFF66BB6A);
 
   @override
   Widget build(BuildContext context) {
@@ -200,86 +224,140 @@ class _DashboardHomeScreen extends StatelessWidget {
           onRefresh: provider.refreshAll,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                Text(
-                  "Tableau de bord",
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                // ── Carte de bienvenue (façon agriculteur) ──────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(26),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1B5E20), accentGreen],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryGreen.withOpacity(0.3),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
                       ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Bonjour $userName ",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Voici un aperçu de vos compte",
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.insights_rounded,
+                                color: Colors.white, size: 24),
+                          ),
+                          const SizedBox(width: 14),
+                          Text(
+                            "$total",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text(
+                              "analyses au total",
+                              style: TextStyle(color: Colors.white70, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+
+                Text(
+                  "Vue d'ensemble",
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[850],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
 
                 GridView.count(
                   crossAxisCount: 2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 1.25,
                   children: [
                     _StatCard(
                       title: "En attente",
                       value: pending.toString(),
-                      icon: Icons.hourglass_bottom,
+                      icon: Icons.hourglass_bottom_rounded,
                       color: Colors.orange,
                     ),
                     _StatCard(
                       title: "Validées",
                       value: validated.toString(),
-                      icon: Icons.check_circle,
+                      icon: Icons.check_circle_rounded,
                       color: Colors.green,
                     ),
                     _StatCard(
                       title: "Corrigées",
                       value: corrected.toString(),
-                      icon: Icons.edit,
+                      icon: Icons.edit_rounded,
                       color: Colors.blue,
                     ),
                     _StatCard(
                       title: "Total",
                       value: total.toString(),
-                      icon: Icons.analytics,
+                      icon: Icons.analytics_rounded,
                       color: Colors.purple,
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 28),
 
-                const Text(
+                Text(
                   "Actions rapides",
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
+                    color: Colors.grey[850],
                   ),
                 ),
 
-                const SizedBox(height: 12),
 
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.analytics, color: Colors.green),
-                    title: const Text("Voir les analyses"),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      DefaultTabController.of(context);
-                    },
-                  ),
-                ),
-
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.add_circle, color: Colors.green),
-                    title: const Text("Ajouter une variété"),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                  ),
-                ),
               ],
             ),
           ),
@@ -287,8 +365,76 @@ class _DashboardHomeScreen extends StatelessWidget {
       },
     );
   }
-}
 
+  Widget _quickAction(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withOpacity(0.85), color],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: Colors.white),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 // ======================================================
 // 📊 STAT CARD
 // ======================================================
@@ -307,43 +453,42 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              backgroundColor: color.withOpacity(0.15),
-              child: Icon(icon, color: color),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
             ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+          ),
+        ],
       ),
     );
   }
@@ -363,81 +508,94 @@ class _ProfilScreen extends StatelessWidget {
     required this.userPhone,
   });
 
+  static const Color primaryGreen = Color(0xFF2E7D32);
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 30),
       child: Column(
         children: [
-
-          CircleAvatar(
-            radius: 55,
-            backgroundColor: Colors.green[100],
-            child: Icon(
-              Icons.person,
-              size: 60,
-              color: Colors.green[700],
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF66BB6A), primaryGreen],
+              ),
+            ),
+            child: CircleAvatar(
+              radius: 52,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person, size: 58, color: primaryGreen),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           Text(
             userName,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 8),
 
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.green[100],
+              color: primaryGreen.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
+            child: Text(
               'Technicien Agricole',
-              style: TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: primaryGreen, fontWeight: FontWeight.w600),
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.email, color: Colors.green[700]),
-              title: const Text("Email"),
-              subtitle: Text(
-                userEmail.isEmpty ? "Non renseigné" : userEmail,
-              ),
-            ),
+          _profileTile(Icons.email_rounded, "Email", userEmail.isEmpty ? "Non renseigné" : userEmail, Colors.blue),
+          _profileTile(Icons.phone_rounded, "Téléphone", userPhone.isEmpty ? "Non renseigné" : userPhone, Colors.green),
+          _profileTile(Icons.location_on_rounded, "Zone", "Sénégal", Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileTile(IconData icon, String title, String value, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
-
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.phone, color: Colors.green[700]),
-              title: const Text("Téléphone"),
-              subtitle: Text(
-                userPhone.isEmpty ? "Non renseigné" : userPhone,
-              ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(icon, color: color, size: 20),
           ),
-
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.location_on, color: Colors.green[700]),
-              title: const Text("Zone"),
-              subtitle: const Text("Sénégal"),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                const SizedBox(height: 3),
+                Text(value, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+              ],
             ),
           ),
         ],

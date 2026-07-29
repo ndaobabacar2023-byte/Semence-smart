@@ -33,6 +33,10 @@ router.get(
   '/analyses',
   technicienController.getAllAnalyses
 );
+//router.get(
+ // '/mes-analyses',
+ // technicienController.getMesAnalyses
+//);
 
 router.get(
   '/analyses/:id',

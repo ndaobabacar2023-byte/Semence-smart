@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/login_screen.dart';
 import '../screens/type_culture_screen.dart';
 import '../screens/meteo_screen.dart';
-import '../screens/historique_screen.dart';  // ← AJOUTER CET IMPORT
+import '../screens/historique_screen.dart';
 import '../services/api_service.dart';
+import 'semence_logo.dart'; // ← le widget CustomPainter créé précédemment
 
 class Sidebar extends StatelessWidget {
   const Sidebar({Key? key}) : super(key: key);
+
+  static const Color primaryGreen = Color(0xFF2E7D32);
 
   @override
   Widget build(BuildContext context) {
@@ -19,42 +21,28 @@ class Sidebar extends StatelessWidget {
             // ========== EN-TÊTE ==========
             Container(
               padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.green[700]!,
-                    Colors.green[500]!,
-                  ],
+                  colors: [Color(0xFF1B5E20), primaryGreen],
                 ),
               ),
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.white.withOpacity(0.15),
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
                     ),
-                    child: const Icon(
-                      Icons.agriculture,
-                      size: 50,
-                      color: Colors.green,
-                    ),
+                    child: const SemenceLogo(size: 76),
                   ),
                   const SizedBox(height: 16),
                   const Text(
                     "Semence Smart",
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -79,9 +67,9 @@ class Sidebar extends StatelessWidget {
                 ],
               ),
             ),
-            
-            const Divider(color: Colors.grey, thickness: 1),
-            
+
+            const Divider(color: Colors.grey, thickness: 1, height: 1),
+
             // ========== MENU PRINCIPAL ==========
             Expanded(
               child: ListView(
@@ -90,7 +78,7 @@ class Sidebar extends StatelessWidget {
                   // 1. ACCUEIL
                   _buildSidebarItem(
                     context,
-                    icon: Icons.home,
+                    icon: Icons.home_rounded,
                     title: "Accueil",
                     onTap: () {
                       Navigator.pop(context);
@@ -100,36 +88,11 @@ class Sidebar extends StatelessWidget {
                       );
                     },
                   ),
-                  
-                  // 2. MES CULTURES
+
+                  // 2. HISTORIQUE
                   _buildSidebarItem(
                     context,
-                    icon: Icons.grass,
-                    title: "Mes cultures",
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showComingSoon(context, "Mes cultures");
-                    },
-                  ),
-                  
-                  // 3. MÉTÉO EN TEMPS RÉEL
-                  _buildSidebarItem(
-                    context,
-                    icon: Icons.wb_sunny,
-                    title: "Météo en temps réel",
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MeteoScreen()),
-                      );
-                    },
-                  ),
-                  
-                  // 4. HISTORIQUE ← MAINTENANT ACTIF
-                  _buildSidebarItem(
-                    context,
-                    icon: Icons.history,
+                    icon: Icons.history_rounded,
                     title: "Historique",
                     onTap: () {
                       Navigator.pop(context);
@@ -139,35 +102,38 @@ class Sidebar extends StatelessWidget {
                       );
                     },
                   ),
-                  
-                  // 5. CONSEILS
+
+                  // 3. MÉTÉO EN TEMPS RÉEL
                   _buildSidebarItem(
                     context,
-                    icon: Icons.tips_and_updates,
-                    title: "Conseils",
+                    icon: Icons.wb_sunny_rounded,
+                    title: "Météo en temps réel",
                     onTap: () {
                       Navigator.pop(context);
-                      _showComingSoon(context, "Conseils");
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MeteoScreen()),
+                      );
                     },
                   ),
-                  
-                  // 6. MON PROFIL
+
+                  // 4. MON PROFIL
                   _buildSidebarItem(
                     context,
-                    icon: Icons.person,
+                    icon: Icons.person_rounded,
                     title: "Mon profil",
                     onTap: () {
                       Navigator.pop(context);
                       _showProfileInfo(context);
                     },
                   ),
-                  
+
                   const Divider(color: Colors.grey, thickness: 1),
-                  
-                  // 7. DÉCONNEXION
+
+                  // 5. DÉCONNEXION
                   _buildSidebarItem(
                     context,
-                    icon: Icons.logout,
+                    icon: Icons.logout_rounded,
                     title: "Déconnexion",
                     color: Colors.red[400]!,
                     onTap: () => _showLogoutDialog(context),
@@ -175,7 +141,7 @@ class Sidebar extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // ========== PIED DE PAGE ==========
             Padding(
               padding: const EdgeInsets.all(16),
@@ -213,7 +179,7 @@ class Sidebar extends StatelessWidget {
     Color? color,
   }) {
     return ListTile(
-      leading: Icon(icon, color: color ?? Colors.green[700]),
+      leading: Icon(icon, color: color ?? primaryGreen),
       title: Text(
         title,
         style: TextStyle(
@@ -262,7 +228,7 @@ class Sidebar extends StatelessWidget {
               await ApiService.logout();
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) =>  LoginScreen()),
+                MaterialPageRoute(builder: (_) => LoginScreen()),
                 (route) => false,
               );
             },
@@ -276,14 +242,14 @@ class Sidebar extends StatelessWidget {
   void _showProfileInfo(BuildContext context) async {
     final token = await ApiService.getToken();
     final role = await ApiService.getRole();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.person, color: Colors.green[700]),
+            Icon(Icons.person, color: primaryGreen),
             const SizedBox(width: 8),
             const Text("Mon profil"),
           ],
@@ -303,7 +269,7 @@ class Sidebar extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.badge, size: 18, color: Colors.green[700]),
+                      Icon(Icons.badge, size: 18, color: primaryGreen),
                       const SizedBox(width: 8),
                       Text(
                         "Statut: ${token != null ? 'Connecté' : 'Non connecté'}",
@@ -315,7 +281,7 @@ class Sidebar extends StatelessWidget {
                   if (role != null)
                     Row(
                       children: [
-                        Icon(Icons.assignment_ind, size: 18, color: Colors.green[700]),
+                        Icon(Icons.assignment_ind, size: 18, color: primaryGreen),
                         const SizedBox(width: 8),
                         Text("Rôle: $role"),
                       ],
@@ -339,16 +305,6 @@ class Sidebar extends StatelessWidget {
             child: const Text("Fermer"),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("📱 $feature - Bientôt disponible"),
-        backgroundColor: Colors.green[700],
-        duration: const Duration(seconds: 2),
       ),
     );
   }

@@ -1,3 +1,4 @@
+//voici l'écran de choix du type de culture
 import 'package:flutter/material.dart';
 import 'choix_culture_screen.dart';
 import '../services/api_service.dart';
@@ -5,8 +6,14 @@ import 'login_screen.dart';
 import '../widgets/sidebar.dart';  // ← IMPORT DU SIDEBAR
 
 class TypeCultureScreen extends StatelessWidget {
-  const TypeCultureScreen({Key? key}) : super(key: key);
+  final String? agriculteurId;
+  final String? agriculteurNom;
 
+  const TypeCultureScreen({
+    Key? key,
+    this.agriculteurId,
+    this.agriculteurNom,
+  }) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return Scaffold(

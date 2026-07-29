@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1066773178761",
+    "project_id": "semence-smart-a8563",
+    "storage_bucket": "semence-smart-a8563.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1066773178761:android:234d29db518c9792e65958",
+        "android_client_info": {
+          "package_name": "com.example.agriadvisor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHvDLyeOS2gwo9W_XfagV3yjM5QlUnJfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

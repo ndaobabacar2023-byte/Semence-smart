@@ -1,4 +1,3 @@
-// models/Notification.js
 const mongoose = require('mongoose');
 
 const NotificationSchema = new mongoose.Schema({
@@ -7,25 +6,40 @@ const NotificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+
   type: {
     type: String,
     enum: ['new_analysis', 'analysis_validated', 'analysis_corrected', 'new_variety'],
     required: true
   },
+
   title: String,
   message: String,
+
   data: {
-    analyseId: mongoose.Schema.Types.ObjectId,
-    varieteId: mongoose.Schema.Types.ObjectId
+    analyseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Analyse'
+    },
+
+    technicienId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+
+    commentaire: String,
+    recommandations: String
   },
+
   isRead: {
     type: Boolean,
     default: false
-  }
-}, {
-  timestamps: true
-});
+  },
 
-NotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
 module.exports = mongoose.model('Notification', NotificationSchema);

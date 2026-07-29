@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/api_service.dart';
-import '../providers/location_provider.dart';
+import '../services/meteo_service.dart';
 import '../widgets/map_location_picker.dart';
 import 'resultat_screen.dart';
 
 class FormulaireScreen extends StatefulWidget {
   final String type;
   final String culture;
+  final String? agriculteurId;
 
   const FormulaireScreen({
     required this.type,
     required this.culture,
+    this.agriculteurId,
     Key? key,
   }) : super(key: key);
-
   @override
   State<FormulaireScreen> createState() => _FormulaireScreenState();
 }
@@ -33,7 +33,13 @@ class _FormulaireScreenState extends State<FormulaireScreen>
   String? _saison;
   bool _loading = false;
   bool _isLocationLoaded = false;
-  
+
+  // ── Météo temps réel ──────────────────────────────────────
+  bool _weatherAutoFilled = false;
+  bool _loadingWeather = false;
+  String? _weatherError;
+  bool _manualOverride = false; // permet de repasser en saisie manuelle
+
   // Variables pour la carte GPS
   LatLng? _positionGPS;
   String _adresseExacte = "";
@@ -46,7 +52,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
 
   // Options
   final List<String> sols = ['Sableux', 'Limoneux', 'Argileux', 'Lateritique', 'Tourbeux'];
-  
+
   final List<String> zones = [
     'Nord (Louga, Matam, Podor)',
     'Centre (Thiès, Diourbel, Kaolack)',
@@ -64,7 +70,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -107,6 +113,43 @@ class _FormulaireScreenState extends State<FormulaireScreen>
     return 'Centre (Thiès, Diourbel, Kaolack)';
   }
 
+  // ── Récupère la météo temps réel dès que le GPS est détecté ──
+  // ── Récupère la météo temps réel dès que le GPS est détecté ──
+Future<void> _fetchWeatherForPosition(LatLng position) async {
+  setState(() {
+    _loadingWeather = true;
+    _weatherError = null;
+  });
+
+  try {
+    final result = await MeteoService.getWeatherByCoords(
+      position.latitude,
+      position.longitude,
+    );
+
+    if (result['success'] == true) {
+      final data = result['data'];
+      setState(() {
+        _temperature = (data['temperature'] as num).toDouble();
+        _humidite = (data['humidite'] as num).toDouble();
+        _weatherAutoFilled = true;
+        _manualOverride = false;
+        _loadingWeather = false;
+      });
+    } else {
+      setState(() {
+        _weatherError = result['error'] ?? "Météo indisponible";
+        _loadingWeather = false;
+      });
+    }
+  } catch (e) {
+    setState(() {
+      _weatherError = "Erreur météo : $e";
+      _loadingWeather = false;
+    });
+  }
+}
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_sol == null || _zone == null || _saison == null) {
@@ -129,6 +172,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
         zone: zoneSimple,
         saison: saisonSimple,
         eau: _eau,
+        agriculteurId: widget.agriculteurId,
       );
 
       if (result['success'] == true) {
@@ -263,34 +307,42 @@ class _FormulaireScreenState extends State<FormulaireScreen>
               children: [
                 _buildHeader(),
                 const SizedBox(height: 24),
-                
+
                 // Carte interactive
                 _buildMapCard(),
                 const SizedBox(height: 24),
-                
+
                 _buildSectionTitle("🌡️ Conditions environnementales"),
                 const SizedBox(height: 16),
-                
-                _buildModernSlider(
-                  label: "Température",
-                  value: _temperature,
-                  min: 15,
-                  max: 45,
-                  unit: "°C",
-                  icon: Icons.thermostat,
-                  color: Colors.orange,
-                  onChanged: (val) => setState(() => _temperature = val),
-                ),
-                _buildModernSlider(
-                  label: "Humidité",
-                  value: _humidite,
-                  min: 20,
-                  max: 95,
-                  unit: "%",
-                  icon: Icons.water_drop,
-                  color: Colors.blue,
-                  onChanged: (val) => setState(() => _humidite = val),
-                ),
+
+                // ── Température & Humidité : auto ou manuel ──
+                if (_weatherAutoFilled && !_manualOverride) ...[
+                  _buildWeatherAutoCard(),
+                ] else ...[
+                  if (_loadingWeather) _buildWeatherLoadingCard(),
+                  if (_weatherError != null) _buildWeatherErrorCard(),
+                  _buildModernSlider(
+                    label: "Température",
+                    value: _temperature,
+                    min: 15,
+                    max: 45,
+                    unit: "°C",
+                    icon: Icons.thermostat,
+                    color: Colors.orange,
+                    onChanged: (val) => setState(() => _temperature = val),
+                  ),
+                  _buildModernSlider(
+                    label: "Humidité",
+                    value: _humidite,
+                    min: 20,
+                    max: 95,
+                    unit: "%",
+                    icon: Icons.water_drop,
+                    color: Colors.blue,
+                    onChanged: (val) => setState(() => _humidite = val),
+                  ),
+                ],
+
                 _buildModernSlider(
                   label: "Disponibilité en eau",
                   value: _eau,
@@ -301,11 +353,11 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                   color: Colors.cyan,
                   onChanged: (val) => setState(() => _eau = val),
                 ),
-                
+
                 const SizedBox(height: 24),
                 _buildSectionTitle("🌍 Paramètres du sol"),
                 const SizedBox(height: 16),
-                
+
                 _buildModernDropdown(
                   label: "Type de sol",
                   value: _sol,
@@ -314,7 +366,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                   onChanged: (val) => setState(() => _sol = val),
                 ),
                 const SizedBox(height: 16),
-                
+
                 _buildModernDropdown(
                   label: "Zone géographique",
                   value: _zone,
@@ -324,7 +376,7 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                   isLocationAuto: _isLocationLoaded,
                 ),
                 const SizedBox(height: 16),
-                
+
                 _buildModernDropdown(
                   label: "Saison de culture",
                   value: _saison,
@@ -332,9 +384,9 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                   icon: Icons.calendar_today,
                   onChanged: (val) => setState(() => _saison = val),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 _buildSubmitButton(),
                 const SizedBox(height: 20),
               ],
@@ -433,11 +485,14 @@ class _FormulaireScreenState extends State<FormulaireScreen>
                   _isLocationLoaded = true;
                   _zone = _getFormattedZoneFromGPS(zone);
                 });
+
+                // ── Déclenche la récupération météo temps réel ──
+                _fetchWeatherForPosition(position);
               },
             ),
           ),
         ),
-        
+
         if (_positionGPS != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -489,6 +544,155 @@ class _FormulaireScreenState extends State<FormulaireScreen>
           ),
         ],
       ],
+    );
+  }
+
+  // ── Carte "Météo détectée automatiquement" ─────────────────
+  Widget _buildWeatherAutoCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue[50]!, Colors.green[50]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.blue[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.wifi_tethering, size: 16, color: Colors.blue[600]),
+              const SizedBox(width: 6),
+              Text(
+                "Détecté automatiquement (météo temps réel)",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue[700],
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => setState(() => _manualOverride = true),
+                icon: const Icon(Icons.edit, size: 14),
+                label: const Text("Modifier", style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildWeatherStat(
+                  Icons.thermostat,
+                  Colors.orange,
+                  "${_temperature.toStringAsFixed(1)} °C",
+                  "Température",
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildWeatherStat(
+                  Icons.water_drop,
+                  Colors.blue,
+                  "${_humidite.toStringAsFixed(0)} %",
+                  "Humidité",
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeatherStat(IconData icon, Color color, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeatherLoadingCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue[600]),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            "Récupération de la météo en temps réel...",
+            style: TextStyle(fontSize: 13, color: Colors.blue[700]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeatherErrorCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 18, color: Colors.orange[700]),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "$_weatherError — renseignez température et humidité manuellement",
+              style: TextStyle(fontSize: 12.5, color: Colors.orange[800]),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -680,9 +884,9 @@ class _FormulaireScreenState extends State<FormulaireScreen>
           children: [
             _buildHelpItem("🗺️ Carte", "Cliquez sur la carte pour sélectionner votre position"),
             const SizedBox(height: 12),
-            _buildHelpItem("🌡️ Température", "Température moyenne journalière de votre région"),
+            _buildHelpItem("🌡️ Température & Humidité", "Récupérées automatiquement depuis la météo temps réel une fois la position détectée"),
             const SizedBox(height: 12),
-            _buildHelpItem("💧 Humidité", "Taux d'humidité dans l'air"),
+            _buildHelpItem("💧 Eau", "Quantité d'eau disponible pour l'irrigation de votre parcelle"),
             const SizedBox(height: 12),
             _buildHelpItem("🌍 Type de sol", "Nature dominante de votre sol"),
             const SizedBox(height: 12),

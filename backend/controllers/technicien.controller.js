@@ -5,7 +5,7 @@ const Analyse = require('../models/Analyse');
 const Variete = require('../models/Variete');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-
+const NotificationService = require("../services/notification.service");
 /**
  * GET ALL ANALYSES
  */
@@ -13,24 +13,82 @@ exports.getAllAnalyses = async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
 
-    const filter = {};
-    if (status) filter.statut = status;
+   const filter = {
+      statut: 'pending'
+    };
 
-    const analyses = await Analyse.find(filter)
-      .populate('userId', 'nom prenom email telephone')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * parseInt(limit))
-      .limit(parseInt(limit));
+    if (status) {
+      filter.statut = status;
+    }
+  const analyses = await Analyse.find({
+  $or: [
+    {
+      statut: 'pending'
+    },
+    {
+      statut: 'validated',
+      'validation.technicienId': req.user.id
+    },
+    {
+      statut: 'corrected',
+      'correction.technicienId': req.user.id
+    }
+  ]
+})
+.populate(
+  'userId',
+  'nom prenom email telephone'
+)
+.sort({ createdAt: -1 })
+.skip((page - 1) * parseInt(limit))
+.limit(parseInt(limit));
 
-    const total = await Analyse.countDocuments(filter);
+const total = await Analyse.countDocuments({
+  $or: [
+    {
+      statut: 'pending'
+    },
+    {
+      statut: 'validated',
+      'validation.technicienId': req.user.id
+    },
+    {
+      statut: 'corrected',
+      'correction.technicienId': req.user.id
+    }
+  ]
+});
 
     const stats = {
-      pending: await Analyse.countDocuments({ statut: 'pending' }),
-      validated: await Analyse.countDocuments({ statut: 'validated' }),
-      corrected: await Analyse.countDocuments({ statut: 'corrected' }),
-      rejected: await Analyse.countDocuments({ statut: 'rejected' }),
-      total: await Analyse.countDocuments()
-    };
+  pending: await Analyse.countDocuments({
+    statut: 'pending'
+  }),
+
+  validated: await Analyse.countDocuments({
+    statut: 'validated',
+    'validation.technicienId': req.user.id
+  }),
+
+  corrected: await Analyse.countDocuments({
+    statut: 'corrected',
+    'correction.technicienId': req.user.id
+  }),
+
+  total:
+      await Analyse.countDocuments({
+    $or: [
+      { statut: 'pending' },
+      {
+        statut: 'validated',
+        'validation.technicienId': req.user.id
+      },
+      {
+        statut: 'corrected',
+        'correction.technicienId': req.user.id
+      }
+    ]
+  })
+};
 
     res.json({
       success: true,
@@ -111,6 +169,7 @@ exports.updateAnalyse = async (req, res) => {
  */
 exports.validateAnalyse = async (req, res) => {
   try {
+
     const analyse = await Analyse.findByIdAndUpdate(
       req.params.id,
       {
@@ -128,14 +187,45 @@ exports.validateAnalyse = async (req, res) => {
       });
     }
 
-    await Notification.create({
-      userId: analyse.userId,
-      type: 'analysis_validated',
-      title: 'Analyse validée',
-      message: `Votre analyse de ${analyse.culture} a été validée.`,
-      data: { analyseId: analyse._id },
-      isRead: false
-    });
+    const technicien = await User.findById(req.user.id);
+
+    console.log("================================");
+    console.log("✅ VALIDATION ANALYSE");
+    console.log("Analyse ID :", analyse._id);
+    console.log("Culture :", analyse.culture);
+    console.log("Agriculteur :", analyse.userId);
+    console.log("Technicien :", technicien);
+    console.log("================================");
+
+   const notification = await NotificationService.envoyer({
+
+    userId: analyse.userId,
+
+    type: "analysis_validated",
+
+    title: "Analyse validée",
+
+    message:
+      `Votre analyse de ${analyse.culture} a été validée par ${technicien.prenom} ${technicien.nom}.`,
+
+    data: {
+
+      analyseId: analyse._id.toString(),
+
+      technicienNom:
+        `${technicien.prenom} ${technicien.nom}`,
+
+      technicienEmail:
+        technicien.email,
+
+      technicienTelephone:
+        technicien.telephone
+    }
+
+  });
+
+    console.log("📨 Notification créée :");
+    console.log(notification);
 
     res.json({
       success: true,
@@ -144,11 +234,15 @@ exports.validateAnalyse = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Erreur validateAnalyse:", error);
-    res.status(500).json({ success: false, message: error.message });
+
+    console.error("❌ Erreur validateAnalyse :", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
-
 /**
  * CORRECT ANALYSE
  */
@@ -175,15 +269,41 @@ exports.correctAnalyse = async (req, res) => {
         message: 'Analyse non trouvée'
       });
     }
+    const technicien = await User.findById(req.user.id);
 
-    await Notification.create({
-      userId: analyse.userId,
-      type: 'analysis_corrected',
-      title: 'Analyse corrigée',
-      message: `Une analyse a été corrigée pour ${analyse.culture}.`,
-      data: { analyseId: analyse._id },
-      isRead: false
-    });
+   await NotificationService.envoyer({
+
+  userId: analyse.userId,
+
+  type: "analysis_corrected",
+
+  title: "Analyse corrigée",
+
+  message:
+    `Votre analyse de ${analyse.culture} a été corrigée par ${technicien.prenom} ${technicien.nom}.`,
+
+  data: {
+
+    analyseId: analyse._id.toString(),
+
+    technicienNom:
+      `${technicien.prenom} ${technicien.nom}`,
+
+    technicienEmail:
+      technicien.email,
+
+    technicienTelephone:
+      technicien.telephone,
+
+    variete,
+
+    recommandations,
+
+    commentaire: comment
+
+  }
+
+});
 
     res.json({
       success: true,
@@ -202,27 +322,36 @@ exports.correctAnalyse = async (req, res) => {
  */
 exports.getStats = async (req, res) => {
   try {
-    const [pending, validated, corrected, rejected, total, techniciens] =
-      await Promise.all([
-        Analyse.countDocuments({ statut: 'pending' }),
-        Analyse.countDocuments({ statut: 'validated' }),
-        Analyse.countDocuments({ statut: 'corrected' }),
-        Analyse.countDocuments({ statut: 'rejected' }),
-        Analyse.countDocuments(),
-        User.countDocuments({ role: 'technicien' })
-      ]);
+   const [pending, validated, corrected] =
+await Promise.all([
 
-    res.json({
-      success: true,
-      data: {
-        pending,
-        validated,
-        corrected,
-        rejected,
-        total,
-        techniciens
-      }
-    });
+  // visible par tous
+  Analyse.countDocuments({
+    statut: 'pending'
+  }),
+
+  // seulement ce technicien
+  Analyse.countDocuments({
+    statut: 'validated',
+    'validation.technicienId': req.user.id
+  }),
+
+  // seulement ce technicien
+  Analyse.countDocuments({
+    statut: 'corrected',
+    'correction.technicienId': req.user.id
+  })
+
+]);
+
+  res.json({
+  success: true,
+  data: {
+    pending,
+    validated,
+    corrected
+  }
+});
 
   } catch (error) {
     console.error("Erreur getStats:", error);

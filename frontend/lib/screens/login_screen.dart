@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/api_service.dart';
 import 'register_screen.dart';
 import 'welcome_screen.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -18,36 +21,55 @@ class _LoginScreenState extends State<LoginScreen> {
   bool loading = false;
   bool obscurePassword = true;
 
-  void login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => loading = true);
+void login() async {
+  if (_formKey.currentState!.validate()) {
+    setState(() => loading = true);
 
-      var response = await ApiService.login(
-        emailController.text.trim(),
-        passwordController.text.trim(),
+    var response = await ApiService.login(
+      emailController.text.trim(),
+      passwordController.text.trim(),
+    );
+
+    setState(() => loading = false);
+if (response['token'] != null) {
+
+  if (!kIsWeb) {
+
+    String? fcmToken =
+        await FirebaseMessaging.instance.getToken();
+
+    if (fcmToken != null) {
+
+      await ApiService.saveFcmToken(
+        response["user"]["_id"],
+        fcmToken,
       );
 
-      setState(() => loading = false);
-
-      if (response['token'] != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => WelcomeScreen(
-              nom: response['user']['nom'],
-              prenom: response['user']['prenom'],
-              role: response['user']['role'],
-            ),
-          ),
-        );
-      } else {
-        Fluttertoast.showToast(
-          msg: "❌ Erreur connexion",
-          backgroundColor: Colors.red,
-        );
-      }
     }
   }
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => WelcomeScreen(
+        nom: response['user']['nom'],
+        prenom: response['user']['prenom'],
+        role: response['user']['role'],
+      ),
+    ),
+  );
+
+
+
+} else {
+      Fluttertoast.showToast(
+        msg: response['message'] ??
+            response['error'] ??
+            "Erreur connexion",
+      );
+}
+  }
+}
 
   String? emailValidator(String? v) {
     if (v == null || v.isEmpty) return "Email obligatoire";

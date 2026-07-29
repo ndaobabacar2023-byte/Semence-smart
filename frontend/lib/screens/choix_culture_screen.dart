@@ -1,12 +1,19 @@
+//voici l'écran de choix de culture
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'formulaire_screen.dart';
-import 'ajouter_culture_screen.dart'; // À créer
-
+import 'selection_culture_screen.dart'; // ← remplace ajouter_culture_screen.dart
 class ChoixCultureScreen extends StatefulWidget {
   final String type;
-  const ChoixCultureScreen({required this.type, super.key});
+  final String? agriculteurId;
+  final String? agriculteurNom;
 
+  const ChoixCultureScreen({
+    required this.type,
+    this.agriculteurId,
+    this.agriculteurNom,
+    super.key,
+  });
   @override
   State<ChoixCultureScreen> createState() => _ChoixCultureScreenState();
 }
@@ -73,7 +80,7 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
     _prefs = await SharedPreferences.getInstance();
     final String key = 'user_cultures_${widget.type}';
     final String? culturesJson = _prefs?.getString(key);
-    
+
     if (culturesJson != null && culturesJson.isNotEmpty) {
       try {
         final List<dynamic> decoded = List<dynamic>.from(
@@ -96,36 +103,20 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
     }
   }
 
-  Future<void> _saveUserCultures() async {
-    final String key = 'user_cultures_${widget.type}';
-    final String culturesJson = _userCultures.map((c) => 
-      '${c['nom']};;;${c['emoji']};;;${c['description']}'
-    ).join('|||');
-    await _prefs?.setString(key, culturesJson);
-  }
-
-  Future<void> _ajouterCulture() async {
-    final result = await Navigator.push(
+  // ── Ouvre la liste complète des cultures de la base ─────────────
+  // (remplace l'ancienne création manuelle)
+  Future<void> _voirToutesLesCultures() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AjouterCultureScreen(type: widget.type),
+        builder: (_) => SelectionCultureScreen(
+          type: widget.type,
+          agriculteurId: widget.agriculteurId,
+        ),
       ),
     );
-    
-    if (result != null && result is Map<String, String>) {
-      setState(() {
-        _userCultures.add(result);
-      });
-      _saveUserCultures();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Culture "${result['nom']}" ajoutée avec succès'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    // Pas de résultat à traiter ici : SelectionCultureScreen navigue
+    // directement vers FormulaireScreen quand l'agriculteur choisit.
   }
 
   Future<void> _supprimerCulture(int index) async {
@@ -148,13 +139,17 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
         ],
       ),
     );
-    
+
     if (confirm == true) {
       setState(() {
         _userCultures.removeAt(index);
       });
-      _saveUserCultures();
-      
+      final String key = 'user_cultures_${widget.type}';
+      final String culturesJson = _userCultures.map((c) =>
+        '${c['nom']};;;${c['emoji']};;;${c['description']}'
+      ).join('|||');
+      await _prefs?.setString(key, culturesJson);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Culture "${culture['nom']}" supprimée'),
@@ -198,9 +193,9 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: _ajouterCulture,
-                icon: const Icon(Icons.add),
-                label: const Text('Ajouter une culture'),
+                onPressed: _voirToutesLesCultures,
+                icon: const Icon(Icons.list_alt),
+                label: const Text('Voir toutes les cultures'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[700],
                   foregroundColor: Colors.white,
@@ -269,15 +264,15 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
                         _buildSectionHeader("Cultures recommandées", Icons.recommend),
                         ..._buildDefaultCulturesList(),
                       ],
-                      // Section cultures personnalisées
+                      // Section cultures personnalisées (historique local)
                       if (_userCultures.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        _buildSectionHeader("Mes cultures", Icons.person),
+                        _buildSectionHeader("Mes cultures récentes", Icons.person),
                         ..._buildUserCulturesList(),
                       ],
                       const SizedBox(height: 20),
-                      // Bouton ajouter culture
-                      _buildAjouterCultureButton(),
+                      // Bouton voir toutes les cultures de la base
+                      _buildVoirToutesButton(),
                     ],
                   ),
                 ),
@@ -331,7 +326,7 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
 
   List<Widget> _buildDefaultCulturesList() {
     final defaultCultures = widget.type == "serre" ? _defaultSerreCultures : _defaultPleinAirCultures;
-    
+
     return List.generate(defaultCultures.length, (index) {
       final culture = defaultCultures[index];
       return Padding(
@@ -388,6 +383,7 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
             builder: (_) => FormulaireScreen(
               type: widget.type,
               culture: nom,
+              agriculteurId: widget.agriculteurId,
             ),
           ),
         );
@@ -451,7 +447,7 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                              "Personnalisée",
+                              "Récente",
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.orange[800],
@@ -499,13 +495,13 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
     );
   }
 
-  Widget _buildAjouterCultureButton() {
+  Widget _buildVoirToutesButton() {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 16),
       child: OutlinedButton.icon(
-        onPressed: _ajouterCulture,
-        icon: const Icon(Icons.add_circle_outline),
-        label: const Text('Ajouter ma propre culture'),
+        onPressed: _voirToutesLesCultures,
+        icon: const Icon(Icons.list_alt),
+        label: const Text('Voir toutes les cultures disponibles'),
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.green[700],
           side: BorderSide(color: Colors.green[300]!),
@@ -520,10 +516,10 @@ class _ChoixCultureScreenState extends State<ChoixCultureScreen> {
 
   Widget _buildFloatingActionButton() {
     return FloatingActionButton(
-      onPressed: _ajouterCulture,
+      onPressed: _voirToutesLesCultures,
       backgroundColor: Colors.green[700],
-      child: const Icon(Icons.add, color: Colors.white),
-      tooltip: 'Ajouter une culture',
+      child: const Icon(Icons.list_alt, color: Colors.white),
+      tooltip: 'Voir toutes les cultures',
     );
   }
 }

@@ -3,8 +3,14 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
+<<<<<<< HEAD
 static const String baseUrl =
 "https://semence-smart-backend.onrender.com/api";
+=======
+  static const String baseUrl = "http://localhost:3000/api";
+  static const String aiUrl = "http://localhost:8000";
+
+>>>>>>> 091aac7 (Ajout de Firebase, système de notifications et amélioration de Semence Smart)
 // ===== ANALYSE CONDITIONS =====
 static Future<Map<String, dynamic>> analyseConditions({
   required String culture,
@@ -15,6 +21,7 @@ static Future<Map<String, dynamic>> analyseConditions({
   required String zone,
   required String saison,
   required double eau,
+  String? agriculteurId,
 }) async {
   try {
     final token = await getToken();
@@ -35,6 +42,8 @@ static Future<Map<String, dynamic>> analyseConditions({
       "zone": zone,
       "saison": saison,
       "eau": eau,
+      "topVarietes": 3,
+      if (agriculteurId != null) "agriculteurId": agriculteurId,
     };
     
     print("📤 Envoi analyse: ${jsonEncode(body)}");
@@ -218,6 +227,39 @@ static Future<Map<String, dynamic>> analyseConditions({
     }
   }
   
+static Future<Map<String, dynamic>> validerTechnicien(String id) async {
+  final token = await getToken();
+
+  print("Validation technicien : $id");
+
+  final response = await http.put(
+    Uri.parse("$baseUrl/users/techniciens/$id/valider"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+  );
+
+  print("Status : ${response.statusCode}");
+  print("Body : ${response.body}");
+
+  return jsonDecode(response.body);
+}
+
+
+static Future<List> getTechniciensAttente() async {
+  final token = await getToken();
+
+  final response = await http.get(
+    Uri.parse("$baseUrl/techniciens/attente"),
+    headers: {
+      "Authorization": "Bearer $token",
+    },
+  );
+
+  return jsonDecode(response.body);
+}
+  
   // ===== LOGIN =====
   static Future<Map<String, dynamic>> login(String email, String motDePasse) async {
     try {
@@ -244,6 +286,11 @@ static Future<Map<String, dynamic>> analyseConditions({
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', data['token']);
           await prefs.setString('role', data['user']['role']);
+          await prefs.setString('userId', data['user']['id']);
+          await prefs.setString('nom', data['user']['nom'] ?? '');
+          await prefs.setString('prenom', data['user']['prenom'] ?? '');
+          await prefs.setString('email', data['user']['email'] ?? '');
+          await prefs.setString('telephone', data['user']['telephone'] ?? '');
           print("✅ Token sauvegardé: ${data['token'].substring(0, 20)}...");
         }
         
@@ -270,6 +317,46 @@ static Future<Map<String, dynamic>> analyseConditions({
       };
     }
   }
+
+
+  // ── 1. Récupérer les cultures disponibles (depuis la BDD) ─────────────────────
+static Future<Map<String, dynamic>> getCultures({String? type}) async {
+  try {
+    final token = await getToken();
+    if (token == null) {
+      return {"success": false, "message": "Non authentifié"};
+    }
+ 
+    String url = "$baseUrl/cultures";
+    if (type != null && type.isNotEmpty) {
+      url += "?type=$type";
+    }
+ 
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    ).timeout(const Duration(seconds: 15));
+ 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // Accepte { success: true, data: [...] }  OU  directement [...]
+      if (data is List) {
+        return {"success": true, "data": data};
+      } else if (data['success'] == true) {
+        return {"success": true, "data": data['data'] ?? data['cultures'] ?? []};
+      } else {
+        return {"success": false, "message": data['message'] ?? "Erreur"};
+      }
+    } else {
+      return {"success": false, "message": "Erreur ${response.statusCode}"};
+    }
+  } catch (e) {
+    return {"success": false, "message": "Erreur réseau: $e"};
+  }
+}
 
 
 
@@ -308,6 +395,66 @@ static Future<Map<String, dynamic>> analyseConditions({
   }
 }
 
+
+static Future<void> marquerNotificationLue(String id) async {
+
+  final token = await getToken();
+
+  print("PUT : $baseUrl/notifications/$id/read");
+
+  final response = await http.put(
+    Uri.parse("$baseUrl/notifications/$id/read"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+  );
+
+  print("Status : ${response.statusCode}");
+  print("Body : ${response.body}");
+}
+
+static Future<void> saveFcmToken(
+    String userId,
+    String token
+) async {
+
+  try {
+
+    final response = await http.post(
+      Uri.parse(
+        "$baseUrl/notifications/register-token"
+      ),
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:jsonEncode({
+
+        "userId":userId,
+        "token":token
+
+      }),
+
+    );
+
+
+    print(
+      "FCM TOKEN ENREGISTRE : ${response.body}"
+    );
+
+
+  } catch(e){
+
+    print(
+      "Erreur token FCM : $e"
+    );
+
+  }
+
+}
+
   // Récupérer toutes les analyses (technicien)
   static Future<Map<String, dynamic>> getTechnicienAnalyses({String? status}) async {
   final token = await getToken();
@@ -321,6 +468,35 @@ static Future<Map<String, dynamic>> analyseConditions({
   final response = await http.get(
     Uri.parse(url),
     headers: {
+      "Authorization": "Bearer $token",
+    },
+  );
+
+  return jsonDecode(response.body);
+}
+
+
+static Future<List> getUsers() async {
+  final token = await getToken();
+
+  final response = await http.get(
+    Uri.parse("$baseUrl/users"),
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    },
+  );
+
+  return jsonDecode(response.body);
+}
+
+static Future deleteUser(String id) async {
+  final token = await getToken();
+
+  final response = await http.delete(
+    Uri.parse('$baseUrl/api/users/$id'),
+    headers: {
+      "Content-Type": "application/json",
       "Authorization": "Bearer $token",
     },
   );
@@ -379,6 +555,10 @@ static Future<Map<String, dynamic>> analyseConditions({
       return {"success": false, "message": "Erreur: $e"};
     }
   }
+
+  // ===============================
+// Sauvegarder le token Firebase
+// ===============================
   
   // Corriger une analyse
   static Future<Map<String, dynamic>> correctAnalyse(
@@ -526,4 +706,45 @@ static Future<Map<String, dynamic>> analyseConditions({
       return {"success": false, "message": "Erreur: $e"};
     }
   }
+  static Future<Map<String, dynamic>> getRecommendations({
+  required String culture,
+  required String modeCulture,
+  required String typeCulture,
+  required double temperature,
+  required double humidite,
+  required String typeSol,
+  required String saison,
+}) async {
+  try {
+    final response = await http.post(
+      Uri.parse("$aiUrl/recommend"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "culture": culture,
+        "mode_culture": modeCulture,
+        "type_culture": typeCulture,
+        "temperature": temperature,
+        "humidite": humidite,
+        "type_sol": typeSol,
+        "saison": saison,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return {
+      "success": false,
+      "message": "Erreur serveur"
+    };
+  } catch (e) {
+    return {
+      "success": false,
+      "message": e.toString()
+    };
+  }
+}
 }

@@ -9,8 +9,21 @@ const authRoutes = require('./routes/auth.routes');
 const cultureRoutes = require('./routes/culture.routes');
 const advisorRoutes = require('./routes/advisor.routes');
 const technicienRoutes = require('./routes/technicien.routes');
-const notificationRoutes = require('./routes/notification.routes');
+const notificationRoutes = require("./routes/notification.routes");
+const userRoutes = require('./routes/user.routes');
+
+
+const testRoutes = require("./routes/test.routes");
+
+
 connectDB();
+
+console.log("authRoutes :", typeof authRoutes);
+console.log("cultureRoutes :", typeof cultureRoutes);
+console.log("advisorRoutes :", typeof advisorRoutes);
+console.log("technicienRoutes :", typeof technicienRoutes);
+console.log("notificationRoutes :", typeof notificationRoutes);
+console.log("userRoutes :", typeof userRoutes);
 
 const app = express();
 
@@ -30,7 +43,11 @@ app.use('/api/cultures', cultureRoutes);
 app.use('/api/advisor', advisorRoutes);
 
 
+
+app.use("/api/test", testRoutes);
+
 // Utilisation
+app.use('/api/users', userRoutes);
 app.use('/api/technicien', technicienRoutes);
 app.use('/api/notifications', notificationRoutes);
 // test route

@@ -6,7 +6,11 @@ const AnalyseSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-
+  technicienId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User',
+  default: null
+},
   culture: {
     type: String,
     required: true
@@ -61,10 +65,16 @@ const AnalyseSchema = new mongoose.Schema({
 
   // 🔥 UNIFICATION DU STATUT (IMPORTANT)
   statut: {
-    type: String,
-    enum: ['pending', 'validated', 'corrected', 'rejected'],
-    default: 'pending'
-  },
+  type: String,
+  enum: [
+    'pending',
+    'in_progress',
+    'validated',
+    'corrected',
+    'rejected'
+  ],
+  default: 'pending'
+},
 
   recommandations: [{
     type: String

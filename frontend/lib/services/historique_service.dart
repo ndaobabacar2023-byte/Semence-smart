@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';  // ← AJOUTEZ CETTE LIGNE
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HistoriqueService {
@@ -22,10 +22,8 @@ class HistoriqueService {
       // Ajouter au début de la liste (plus récent en premier)
       historique.insert(0, jsonEncode(analyse));
       
-      // Garder seulement les 50 dernières analyses
-      if (historique.length > 50) {
-        historique = historique.sublist(0, 50);
-      }
+      // Pas de limite : l'historique persiste jusqu'à suppression
+      // volontaire par l'agriculteur (deleteAnalyse ou clearAllAnalyses)
       
       await prefs.setStringList(_historiqueKey, historique);
     } catch (e) {

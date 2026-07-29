@@ -84,7 +84,27 @@ exports.analyse = async (req, res) => {
         message: `Fiche culture "${input.culture}" (type: ${input.typeCulture}) non trouvée` 
       });
     }
+    // ── Détermine le propriétaire réel de l'analyse ────────────
+    let ownerId = req.user.id;
+    let isTechnicienAnalysis = false;
 
+    if (input.agriculteurId && req.user.role === 'technicien') {
+      const User = require('../models/User');
+      const agriculteur = await User.findOne({
+        _id: input.agriculteurId,
+        role: 'agriculteur'
+      });
+
+      if (!agriculteur) {
+        return res.status(404).json({
+          success: false,
+          message: "Agriculteur introuvable"
+        });
+      }
+
+      ownerId = agriculteur._id;
+      isTechnicienAnalysis = true;
+    }
     console.log("📊 Début analyse - Culture:", cultureDoc.nom);
     console.log("📍 Zone:", input.zone, "Saison:", input.saison);
     console.log("🏠 Mode culture:", mode_culture);
@@ -135,6 +155,7 @@ exports.analyse = async (req, res) => {
     }
 
     // Formatage de la réponse
+    // Formatage de la réponse
     const response = {
       success: true,
       culture: cultureDoc.nom,
@@ -144,7 +165,8 @@ exports.analyse = async (req, res) => {
       score: evaluation.score,
       emoji: evaluation.emoji,
       message: evaluation.message,
-      variete: evaluation.bestVariete,
+      topVarietes: evaluation.topVarietes,   // ⭐ AJOUTÉ : les 3 meilleures variétés
+      variete: evaluation.bestVariete,        // gardé pour compatibilité
       recommandations: evaluation.recommandations,
       sousScores: evaluation.subscores,
       metadata: {
@@ -169,7 +191,7 @@ exports.analyse = async (req, res) => {
     // Sauvegarde de l'historique
     try {
       await Analyse.create({
-  userId: req.user.id,
+  userId: ownerId,
 
   culture: response.culture,
   typeCulture: response.typeCulture,
@@ -184,12 +206,16 @@ exports.analyse = async (req, res) => {
 
   score: response.score,
 
-  // ✅ IMPORTANT
-  statut: 'pending',
+  // Auto-validée si un technicien a réalisé l'analyse directement
+  statut: isTechnicienAnalysis ? 'validated' : 'pending',
+  ...(isTechnicienAnalysis && {
+    'validation.technicienId': req.user.id,
+    'validation.validatedAt': new Date()
+  }),
 
   recommandations: response.recommandations,
 
-  variete: response.variete?.nom || null
+  variete: response.topVarietes?.[0]?.nom || null
 });
       console.log('💾 Analyse sauvegardée dans la base');
     } catch (err) {

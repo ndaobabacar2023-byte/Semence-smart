@@ -11,11 +11,14 @@ dependencies:
   
   # UI & Design
   font_awesome_flutter: ^10.7.0
+
+  firebase_core: ^4.0.0
+  firebase_messaging: ^16.0.0
   
   # Maps & Location
   flutter_map: ^8.3.0
   latlong2: ^0.9.1
-  geolocator: ^10.1.0
+  geolocator: ^11.0.0
   geocoding: ^2.1.1
   
   # State Management & API
@@ -30,6 +33,7 @@ dependencies:
   
   # Notifications
   fluttertoast: ^8.2.4
+  flutter_svg: ^2.3.0
   
   # Audio (synthèse vocale) - Commenté pour l'instant
   # just_audio: ^0.10.5

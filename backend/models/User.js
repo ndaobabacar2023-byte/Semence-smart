@@ -33,6 +33,19 @@ const UserSchema = new mongoose.Schema({
     enum: ['agriculteur', 'technicien', 'admin'], 
     default: 'agriculteur' 
   },
+
+   // ✅ AJOUT IMPORTANT
+  statut: {
+    type: String,
+    enum: ['en_attente', 'valide', 'rejete'],
+    default: 'en_attente'
+  },
+
+  fcmToken: {
+  type: String,
+  default: null
+},
+
   createdAt: { 
     type: Date, 
     default: Date.now 

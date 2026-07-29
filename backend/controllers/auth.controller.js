@@ -42,7 +42,8 @@ exports.register = async (req, res) => {
       email: email || undefined, // Garde undefined si vide
       telephone: telephone || undefined,
       motDePasse: hashedPassword,
-      role: role || 'agriculteur'
+      role: role || 'agriculteur',
+      statut: role === 'technicien' ? 'en_attente' : 'valide'
     });
 
     await user.save();
@@ -59,7 +60,8 @@ exports.register = async (req, res) => {
         prenom: user.prenom,
         email: user.email,
         telephone: user.telephone,
-        role: user.role
+        role: user.role,
+        statut: user.statut // ⭐ AJOUT
       }
     });
 
@@ -86,6 +88,12 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
     if (!isMatch) 
       return res.status(401).json({ message: "Email ou mot de passe incorrect" });
+    // ⭐ AJOUT IMPORTANT : blocage des techniciens non validés
+    if (user.role === 'technicien' && user.statut !== 'valide') {
+      return res.status(403).json({
+        message: "Votre compte technicien est en attente de validation par l'administrateur"
+      });
+    }
 
     // Génération du token JWT
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -99,7 +107,8 @@ exports.login = async (req, res) => {
         prenom: user.prenom,
         email: user.email,
         telephone: user.telephone,
-        role: user.role
+        role: user.role,
+        statut: user.statut // ⭐ AJOUT
       }
     });
 
