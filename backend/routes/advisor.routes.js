@@ -2,13 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 const advisorController = require('../controllers/advisor.controller');
-<<<<<<< HEAD
-=======
 const Analyse = require('../models/Analyse');
-// ✅ IMPORT DU MIDDLEWARE AUTH
 const { auth } = require('../middleware/auth.middleware');
->>>>>>> 091aac7 (Ajout de Firebase, système de notifications et amélioration de Semence Smart)
-
 console.log('🔄 Chargement de advisor.routes.js avec controller');
 
 // ==========================

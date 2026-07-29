@@ -3,14 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-<<<<<<< HEAD
-static const String baseUrl =
-"https://semence-smart-backend.onrender.com/api";
-=======
+  //static const String baseUrl ="https://semence-smart-backend.onrender.com/api";
   static const String baseUrl = "http://localhost:3000/api";
   static const String aiUrl = "http://localhost:8000";
 
->>>>>>> 091aac7 (Ajout de Firebase, système de notifications et amélioration de Semence Smart)
 // ===== ANALYSE CONDITIONS =====
 static Future<Map<String, dynamic>> analyseConditions({
   required String culture,
