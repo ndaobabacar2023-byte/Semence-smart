@@ -4,42 +4,43 @@ const User = require("../models/User");
 // =======================================
 // Enregistrer le token Firebase
 // =======================================
-exports.saveToken = async (req, res) => {
-    try {
+exports.saveFcmToken = async (req,res)=>{
 
-        const { userId, token } = req.body;
-
-        if (!userId || !token) {
-            return res.status(400).json({
-                success: false,
-                message: "userId et token requis"
-            });
-        }
+    try{
 
         await User.findByIdAndUpdate(
-            userId,
+
+            req.user.id,
+
             {
-                fcmToken: token 
+
+                fcmToken:req.body.fcmToken
+
             }
+
         );
 
         res.json({
-            success: true,
-            message: "Token enregistré avec succès"
-        });
 
-    } catch (e) {
+            success:true,
+            message:"Token enregistré"
 
-        console.error("Erreur saveToken :", e);
-
-        res.status(500).json({
-            success: false,
-            message: "Erreur serveur"
         });
 
     }
-};
 
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+            message:err.message
+
+        });
+
+    }
+
+}
 
 // =======================================
 // Retourner toutes les notifications

@@ -222,7 +222,7 @@ router.put("/techniciens/:id/refuser", auth, async (req, res) => {
 
         }
 
-        user.statut = "refuse";
+        user.statut = "rejete";
 
         await user.save();
 

@@ -4,7 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   //static const String baseUrl ="https://semence-smart-backend.onrender.com/api";
-  static const String baseUrl = "http://localhost:3000/api";
+  static const String baseUrl =
+      "https://semence-smart-backend-qkjf.onrender.com/api";
   static const String aiUrl = "http://localhost:8000";
 
 // ===== ANALYSE CONDITIONS =====
@@ -411,43 +412,32 @@ static Future<void> marquerNotificationLue(String id) async {
 }
 
 static Future<void> saveFcmToken(
-    String userId,
-    String token
+String token
 ) async {
 
-  try {
+    final jwt = await getToken();
 
-    final response = await http.post(
-      Uri.parse(
-        "$baseUrl/notifications/register-token"
-      ),
+    await http.post(
 
-      headers:{
-        "Content-Type":"application/json"
-      },
+        Uri.parse(
+            "$baseUrl/notifications/register-token"
+        ),
 
-      body:jsonEncode({
+        headers:{
 
-        "userId":userId,
-        "token":token
+            "Content-Type":"application/json",
 
-      }),
+            "Authorization":"Bearer $jwt"
+
+        },
+
+        body:jsonEncode({
+
+            "fcmToken":token
+
+        })
 
     );
-
-
-    print(
-      "FCM TOKEN ENREGISTRE : ${response.body}"
-    );
-
-
-  } catch(e){
-
-    print(
-      "Erreur token FCM : $e"
-    );
-
-  }
 
 }
 
