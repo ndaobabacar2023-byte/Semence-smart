@@ -9,7 +9,8 @@ require("../middleware/auth.middleware");
 
 router.post(
     "/register-token",
-    notificationController.saveToken
+    auth,
+    notificationController.saveFcmToken
 );
 
 router.get(
