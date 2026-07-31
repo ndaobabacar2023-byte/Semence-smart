@@ -11,6 +11,7 @@ console.log('🔄 Chargement de advisor.routes.js avec controller');
 // ==========================
 router.post(
   '/analyse',
+  auth,
   advisorController.analyse
 );
 
